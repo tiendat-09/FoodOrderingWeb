@@ -1,0 +1,213 @@
+﻿@model FoodOrderingWeb.Models.Food
+
+@{
+    ViewData["Title"] = "Thêm món ăn mới";
+    var categories = ViewBag.Categories as List<FoodOrderingWeb.Models.Category>;
+    var stores = ViewBag.Stores as List<FoodOrderingWeb.Models.Store>;
+}
+
+<style>
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        padding: 30px;
+        margin-bottom: 24px;
+        border: 1px solid #eef2f6;
+    }
+
+    .form-label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #364152;
+        margin-bottom: 8px;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 10px 15px;
+        border: 1px solid #d1d9e0;
+        font-size: 0.95rem;
+    }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #5b6b79;
+            box-shadow: none;
+        }
+
+    /* Style cho khung upload ảnh */
+    .image-upload-box {
+        border: 2px dashed #697586;
+        border-radius: 12px;
+        background-color: #f8f9fa;
+        height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .image-upload-box:hover {
+            background-color: #eef2f6;
+            border-color: #4a5568;
+        }
+
+    .upload-icon {
+        font-size: 2rem;
+        color: #5c6ac4; /* Màu tím xanh giống hình */
+        margin-bottom: 10px;
+    }
+
+    .upload-text {
+        color: #5c6ac4;
+        font-weight: 500;
+    }
+
+    /* Ảnh preview sau khi chọn */
+    #imagePreview {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: none; /* Ẩn mặc định */
+    }
+
+    .btn-create {
+        background-color: #5c6ac4;
+        border-color: #5c6ac4;
+        color: white;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+        .btn-create:hover {
+            background-color: #4f5bba;
+            color: white;
+        }
+
+    .btn-cancel {
+        background-color: white;
+        border: 1px solid #d1d9e0;
+        color: #364152;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        margin-right: 12px;
+    }
+</style>
+
+<div class="container py-4" style="background-color: #f8f9fa; min-height: 100vh;">
+
+    <div class="mb-4">
+        <h3 class="fw-bold text-dark">Thêm món ăn mới</h3>
+    </div>
+
+    <form asp-action="CreateFood" method="post" enctype="multipart/form-data">
+
+        <div class="form-card">
+            <h5 class="fw-bold mb-4">Thông tin món ăn</h5>
+
+            <div class="mb-3">
+                <label class="form-label">Tên món ăn</label>
+                <input asp-for="FoodName" class="form-control" placeholder="Nhập tên món ăn" required />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Mô tả</label>
+                <textarea asp-for="Description" class="form-control" rows="4" placeholder="Mô tả chi tiết về món ăn..."></textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Giá (VNĐ)</label>
+                    <input asp-for="Price" type="number" class="form-control" placeholder="Nhập giá bán" required />
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Danh mục</label>
+                    <select asp-for="CategoryId" class="form-select" required>
+                        @if (categories != null)
+                        {
+                            @foreach (var c in categories)
+                            {
+                                <option value="@c.CategoryId">@c.CategoryName</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Cửa hàng phục vụ</label>
+                <select asp-for="StoreId" class="form-select" required>
+                    @if (stores != null)
+                    {
+                        @foreach (var s in stores)
+                        {
+                            <option value="@s.StoreId">@s.StoreName</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <h5 class="fw-bold mb-4">Ảnh món ăn</h5>
+            <p class="text-muted small mb-3">Tải lên ảnh chính để món ăn hấp dẫn hơn.</p>
+
+            <div class="row">
+                <div class="col-md-5">
+                    <label for="fileInput" class="image-upload-box">
+                        <i class="bi bi-camera-fill upload-icon"></i>
+                        <span class="upload-text">Ảnh chính</span>
+                        <img id="imagePreview" src="#" alt="Preview" />
+                    </label>
+
+                    <input type="file" name="imageFile" id="fileInput" class="d-none" accept="image/*" onchange="previewImage(this)" />
+                </div>
+
+                <div class="col-md-7 d-flex align-items-center">
+                    <div class="alert alert-light border w-100 text-muted small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Mẹo: Chọn ảnh vuông hoặc chữ nhật ngang, kích thước tối thiểu 500x500px để hiển thị đẹp nhất.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <input type="hidden" name="IsActive" value="true" />
+
+        <div class="d-flex justify-content-end pt-3">
+            <a asp-action="Foods" class="btn btn-cancel text-decoration-none">Hủy</a>
+            <button type="submit" class="btn btn-create">Tạo món ăn</button>
+        </div>
+
+    </form>
+</div>
+
+<script>
+    function previewImage(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+
+            reader.onload = function(e) {
+                var preview = document.getElementById('imagePreview');
+                preview.src = e.target.result;
+                preview.style.display = 'block'; // Hiện ảnh lên
+
+                // Ẩn text và icon phía sau
+                document.querySelector('.upload-icon').style.display = 'none';
+                document.querySelector('.upload-text').style.display = 'none';
+            }
+
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>

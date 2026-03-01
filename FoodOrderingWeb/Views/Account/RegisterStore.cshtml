@@ -1,0 +1,327 @@
+﻿@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+@model FoodOrderingWeb.Models.Store
+@{
+    ViewData["Title"] = "Đăng ký đối tác bán hàng";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    string currentName = HttpContextAccessor.HttpContext.Session.GetString("FullName");
+}
+
+<style>
+    body {
+        /* Nền xám nhạt tinh tế để làm nổi bật hiệu ứng trong suốt */
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+    }
+
+    /* 🔥 BANNER TRẮNG TRONG SUỐT */
+    .glass-banner {
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+        padding: 50px 0;
+        text-align: center;
+        margin-top: -1px;
+        margin-bottom: 40px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+    }
+
+    /* 🔥 KHUNG FORM TRẮNG TRONG SUỐT */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+        padding: 40px;
+        border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .section-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .form-control-custom {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0,0,0,0.1);
+        padding: 12px 15px;
+        border-radius: 10px;
+        transition: all 0.3s;
+    }
+
+        .form-control-custom:focus {
+            border-color: #f39c12;
+            box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.15);
+            background-color: #fff;
+        }
+
+    .form-label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #555;
+        margin-bottom: 8px;
+    }
+
+    /* CSS Giờ mở cửa */
+    .schedule-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px 0;
+        border-bottom: 1px dashed rgba(0,0,0,0.08);
+    }
+
+        .schedule-row:last-child {
+            border-bottom: none;
+        }
+
+    .day-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        width: 160px;
+    }
+
+    .day-name {
+        font-weight: 600;
+        color: #333;
+        font-size: 0.95rem;
+    }
+
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+    }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+    input:checked + .slider {
+        background-color: #f39c12;
+    }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+    .time-inputs {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        opacity: 0.5;
+        pointer-events: none;
+        transition: 0.3s;
+    }
+
+        .time-inputs.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+    .time-input-small {
+        width: 110px;
+        padding: 6px 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        text-align: center;
+        background: rgba(255,255,255,0.8);
+    }
+
+    .closed-text {
+        display: none;
+        color: #e74c3c;
+        font-weight: 700;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .time-inputs.hidden {
+        display: none;
+    }
+
+    .closed-text.visible {
+        display: block;
+    }
+</style>
+
+<div class="glass-banner">
+    <h2 class="fw-bold" style="color: #f39c12;"><i class="bi bi-shop"></i> ĐĂNG KÝ ĐỐI TÁC BÁN HÀNG</h2>
+    <p class="text-muted mb-0">Tham gia mạng lưới OrderFood để tăng doanh thu ngay hôm nay</p>
+</div>
+
+<div class="container mb-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <form id="storeRegisterForm" asp-action="RegisterStore" asp-controller="Account" method="post">
+                <input type="hidden" asp-for="OperatingDays" id="OperatingDaysJson" />
+                <div class="glass-card">
+                    <div class="section-title"><i class="bi bi-info-circle-fill text-warning"></i> Thông tin quán ăn</div>
+                    <div class="row g-4 mb-4">
+                        <div class="col-12">
+                            <label class="form-label">Tên chủ quán <span class="text-danger">*</span></label>
+                            <input type="text" name="OwnerName" class="form-control form-control-custom fw-bold text-dark"
+                                   value="@currentName" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Tên quán hiển thị <span class="text-danger">*</span></label>
+                            <input type="text" name="StoreName" class="form-control form-control-custom" placeholder="Ví dụ: Cơm Tấm Sài Gòn" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Địa chỉ chính xác <span class="text-danger">*</span></label>
+                            <input type="text" name="Address" class="form-control form-control-custom" placeholder="Số nhà, tên đường..." required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                            <input type="text" name="PhoneNumber" class="form-control form-control-custom" placeholder="09xxxxxxx" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mô tả ngắn</label>
+                            <input type="text" name="Description" class="form-control form-control-custom" placeholder="Đặc sản của quán..." />
+                        </div>
+                    </div>
+
+                    <div class="section-title mt-5"><i class="bi bi-clock-history text-warning"></i> Giờ mở cửa</div>
+
+
+                    <div class="border rounded-3 p-4" style="background: rgba(255,255,255,0.5);">
+                        @foreach (var day in new[] { "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ Nhật" })
+                        {
+                            <div class="schedule-row" id="row_@day.Replace(" ", "")">
+                                <div class="day-info">
+                                    <label class="switch">
+                                        <input type="checkbox" class="day-toggle" data-day="@day" checked onchange="toggleTimeInput(this)">
+                                        <span class="slider"></span>
+                                    </label>
+                                    <span class="day-name">@day</span>
+                                </div>
+                                <div class="time-inputs active" id="inputs_@day.Replace(" ", "")">
+                                    <div class="d-flex align-items-center">
+                                        <span class="text-muted small me-2">Mở:</span>
+                                        <input type="time" class="time-input-small start-time" value="08:00">
+                                    </div>
+                                    <span class="mx-2 text-muted">-</span>
+                                    <div class="d-flex align-items-center">
+                                        <span class="text-muted small me-2">Đóng:</span>
+                                        <input type="time" class="time-input-small end-time" value="22:00">
+                                    </div>
+                                </div>
+                                <div class="closed-text" id="closed_@day.Replace(" ", "")"><i class="bi bi-shop-window me-1"></i> Nghỉ</div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-5">
+                        <button type="submit" id="btnSubmitStore" class="btn w-100 py-3 fw-bold rounded-pill shadow-sm text-uppercase text-white" style="background-color: #f39c12; font-size: 1.1rem; letter-spacing: 1px;">
+                            <i class="bi bi-check2-circle me-2"></i> Hoàn tất đăng ký
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function toggleTimeInput(checkbox) {
+            let dayId = checkbox.getAttribute('data-day').replace(" ", "");
+            let inputDiv = document.getElementById('inputs_' + dayId);
+            let closedText = document.getElementById('closed_' + dayId);
+            if (checkbox.checked) {
+                inputDiv.classList.remove('hidden');
+                setTimeout(() => inputDiv.classList.add('active'), 10);
+                closedText.classList.remove('visible');
+            } else {
+                inputDiv.classList.remove('active');
+                inputDiv.classList.add('hidden');
+                closedText.classList.add('visible');
+            }
+        }
+
+        function prepareScheduleData() {
+            let scheduleData = [];
+            let rows = document.querySelectorAll('.schedule-row');
+            rows.forEach(row => {
+                let checkbox = row.querySelector('.day-toggle');
+                let dayName = checkbox.getAttribute('data-day');
+                if (checkbox.checked) {
+                    let start = row.querySelector('.start-time').value;
+                    let end = row.querySelector('.end-time').value;
+                    scheduleData.push(`${dayName}: ${start} - ${end}`);
+                } else {
+                    scheduleData.push(`${dayName}: Nghỉ`);
+                }
+            });
+            document.getElementById('OperatingDaysJson').value = scheduleData.join(" | ");
+        }
+
+        $(document).ready(function () {
+            $('#storeRegisterForm').on('submit', function (e) {
+                e.preventDefault();
+                prepareScheduleData();
+                var btn = $('#btnSubmitStore');
+                var originalText = btn.html();
+                btn.html('<span class="spinner-border spinner-border-sm"></span> Đang xử lý...').prop('disabled', true);
+
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function (res) {
+                        if (res.success) {
+                            Swal.fire({ icon: 'success', title: 'Thành công!', text: res.message, confirmButtonColor: '#f39c12' })
+                            .then(() => { window.location.href = '/'; }); // 🔥 Đã đổi điều hướng về Trang chủ
+                        } else {
+                            Swal.fire('Lỗi', res.message, 'error');
+                            btn.html(originalText).prop('disabled', false);
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('Lỗi hệ thống', 'Không thể kết nối tới máy chủ.', 'error');
+                        btn.html(originalText).prop('disabled', false);
+                    }
+                });
+            });
+        });
+    </script>
+}

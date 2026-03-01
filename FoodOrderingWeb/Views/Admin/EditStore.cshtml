@@ -1,0 +1,115 @@
+﻿@model FoodOrderingWeb.Models.Store
+@{
+    ViewData["Title"] = "Chỉnh sửa cửa hàng";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+<style>
+    .edit-header {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+
+    .img-edit-preview {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 4px solid #fff;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #444;
+    }
+</style>
+
+<div class="edit-header shadow-sm d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center">
+        <a asp-action="ManageStores" class="btn btn-light rounded-circle me-3"><i class="bi bi-chevron-left"></i></a>
+        <div>
+            <h4 class="fw-bold mb-0">🛠️ Chỉnh sửa: @Model.StoreName</h4>
+            <span class="text-muted small">ID Cửa hàng: #@Model.StoreId</span>
+        </div>
+    </div>
+    <div class="form-check form-switch bg-light p-2 px-4 rounded-pill border">
+        <input class="form-check-input ms-0 me-2" type="checkbox" asp-for="IsOpen" id="statusSwitch">
+        <label class="form-check-label fw-bold @(Model.IsOpen == true ? "text-success" : "text-danger")" for="statusSwitch">
+            @(Model.IsOpen == true ? "ĐANG MỞ CỬA" : "ĐANG ĐÓNG CỬA")
+        </label>
+    </div>
+</div>
+
+<form asp-controller="Admin" asp-action="EditStore" asp-route-id="@Model.StoreId" method="post" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="StoreId" />
+    <input type="hidden" asp-for="CreatedAt" />
+    <input type="hidden" asp-for="OwnerId" />
+    <input type="hidden" asp-for="IsActive" />
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 p-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Tên cửa hàng</label>
+                        <input asp-for="StoreName" class="form-control form-control-lg fw-bold" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Địa chỉ</label>
+                        <input asp-for="Address" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Giờ mở cửa</label>
+                        <input asp-for="OpeningTime" type="time" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Giờ đóng cửa</label>
+                        <input asp-for="ClosingTime" type="time" class="form-control">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Mô tả quán</label>
+                        <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                <label class="form-label mb-3">Hình ảnh hiện tại</label>
+                <img id="imgPreview" src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "/images/stores/default_store.jpg" : Model.ImageUrl)"
+                     class="img-edit-preview mb-3" onerror="this.src='/images/stores/default_store.jpg'">
+
+                <div class="d-grid">
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill" onclick="document.getElementById('fileInput').click()">
+                        <i class="bi bi-camera me-2"></i> Thay đổi ảnh
+                    </button>
+                </div>
+                <input type="file" name="imageFile" id="fileInput" class="d-none" accept="image/*" onchange="previewImage(this)">
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold shadow-sm py-3">
+                    <i class="bi bi-save me-2"></i> LƯU THAY ĐỔI
+                </button>
+                <a asp-action="ManageStores" class="btn btn-light btn-lg rounded-pill border text-muted">Quay lại</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+    function previewImage(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('imgPreview').src = e.target.result;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>

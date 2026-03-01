@@ -1,0 +1,91 @@
+﻿@model FoodOrderingWeb.Models.User
+@{
+    ViewData["Title"] = "Đăng ký";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="card-header text-white text-center py-4" style="background-color: #10b981;">
+                    <h3 class="fw-bold mb-1">Đăng Ký Thành Viên</h3>
+                    <p class="mb-0 small opacity-75">Dùng Email để bảo mật tốt hơn!</p>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+                    <form asp-action="Register" method="post">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger border-0 rounded-3 mb-3 small"></div>
+
+                        <div class="form-floating mb-3">
+                            <input asp-for="FullName" class="form-control rounded-3" id="floatingName" placeholder="Họ tên">
+                            <label for="floatingName">Họ và tên hiển thị</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input asp-for="Email" type="email" class="form-control rounded-3" id="floatingEmail" placeholder="Email" required>
+                            <label for="floatingEmail">Email đăng nhập (*)</label>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-floating">
+                                <input asp-for="PhoneNumber" class="form-control rounded-3" id="floatingPhone" placeholder="SĐT">
+                                <label for="floatingPhone">Số điện thoại (*)</label>
+                            </div>
+                            <div class="text-warning small mt-1 fst-italic">
+                                <i class="bi bi-telephone-inbound-fill"></i> Shipper sẽ gọi vào số này để giao hàng.
+                            </div>
+                        </div>
+
+                        <div class="input-group mb-3">
+                            <div class="form-floating flex-grow-1">
+                                <input asp-for="PasswordHash" type="password" name="Password" class="form-control rounded-start rounded-0" id="passwordInput" placeholder="Mật khẩu">
+                                <label for="passwordInput">Mật khẩu</label>
+                            </div>
+                            <span class="input-group-text bg-white" style="cursor: pointer;" onclick="togglePassword('passwordInput', 'eyeIcon1')">
+                                <i class="bi bi-eye-slash" id="eyeIcon1"></i>
+                            </span>
+                        </div>
+
+                        <div class="input-group mb-4">
+                            <div class="form-floating flex-grow-1">
+                                <input type="password" name="ConfirmPassword" class="form-control rounded-start rounded-0" id="confirmInput" placeholder="Nhập lại">
+                                <label for="confirmInput">Nhập lại mật khẩu</label>
+                            </div>
+                            <span class="input-group-text bg-white" style="cursor: pointer;" onclick="togglePassword('confirmInput', 'eyeIcon2')">
+                                <i class="bi bi-eye-slash" id="eyeIcon2"></i>
+                            </span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg rounded-pill fw-bold" style="background-color: #10b981; border: none;">
+                                ĐĂNG KÝ NGAY
+                            </button>
+                        </div>
+
+                        <div class="text-center mt-4">
+                            <span class="text-muted">Đã có tài khoản?</span>
+                            <a asp-action="Login" class="text-success fw-bold text-decoration-none">Đăng nhập</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function togglePassword(inputId, iconId) {
+        var input = document.getElementById(inputId);
+        var icon = document.getElementById(iconId);
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove("bi-eye-slash");
+            icon.classList.add("bi-eye");
+        } else {
+            input.type = "password";
+            icon.classList.remove("bi-eye");
+            icon.classList.add("bi-eye-slash");
+        }
+    }
+</script>

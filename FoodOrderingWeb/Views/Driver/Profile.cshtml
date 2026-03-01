@@ -1,0 +1,106 @@
+﻿@model FoodOrderingWeb.Models.User
+@{
+    ViewData["Title"] = "Hồ sơ cá nhân";
+    Layout = "~/Views/Shared/_DriverLayout.cshtml";
+}
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-9 col-lg-10">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="row g-0">
+
+                    <div class="col-md-4 bg-light p-4 d-flex flex-column align-items-center justify-content-center border-end">
+                        <img src="@(string.IsNullOrEmpty(Model.Avatar) ? "https://ui-avatars.com/api/?name=" + Uri.EscapeDataString(Model.FullName ?? "D") + "&background=fd7e14&color=fff&size=150" : Model.Avatar)"
+                             class="rounded-circle shadow-sm mb-3" style="width: 140px; height: 140px; border: 5px solid white; object-fit: cover;">
+                        <h4 class="fw-bold text-dark mb-1 text-center">@Model.FullName</h4>
+                        <p class="text-muted small mb-0">Đối tác Tài xế</p>
+                        <span class="badge bg-success mt-3 px-3 py-2 rounded-pill"><i class="bi bi-check-circle me-1"></i>Đang hoạt động</span>
+                    </div>
+
+                    <div class="col-md-8 p-4 p-lg-5 bg-white">
+                        <h4 class="fw-bold mb-4" style="color: #fd7e14;"><i class="bi bi-person-lines-fill me-2"></i>Thông tin nghiệp vụ</h4>
+
+                        <form id="profileForm">
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-muted small">Họ và tên</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white"><i class="bi bi-person text-secondary"></i></span>
+                                        <input type="text" class="form-control bg-light border-start-0 ps-0" id="fullName" value="@Model.FullName" required>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-muted small">Số điện thoại liên hệ</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white"><i class="bi bi-telephone text-secondary"></i></span>
+                                        <input type="text" class="form-control bg-light border-start-0 ps-0" id="phoneNumber" value="@Model.PhoneNumber" required>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-muted small">Căn cước công dân (CCCD)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white"><i class="bi bi-person-vcard text-secondary"></i></span>
+                                        <input type="text" class="form-control bg-light border-start-0 ps-0" id="citizenId" value="@Model.CitizenId" placeholder="VD: 079123456789" required>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-muted small">Biển số xe</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white"><i class="bi bi-bicycle text-secondary"></i></span>
+                                        <input type="text" class="form-control bg-light border-start-0 ps-0 fw-bold text-uppercase" id="licensePlate" value="@Model.LicensePlate" placeholder="VD: 59-A1 123.45" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt-5 pt-4 border-top">
+                                <div class="small text-muted"><i class="bi bi-shield-lock text-success me-1"></i> Thông tin được mã hóa bảo mật</div>
+                                <button type="submit" class="btn text-white px-5 py-2 fw-bold shadow-sm rounded-pill" style="background-color: #fd7e14; border: none;" id="btnSaveProfile">
+                                    <i class="bi bi-floppy me-2"></i>Lưu Thay Đổi
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        $('#profileForm').submit(function(e) {
+            e.preventDefault();
+
+            let btn = $('#btnSaveProfile');
+            let originalText = btn.html();
+            btn.html('<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...').prop('disabled', true);
+
+            $.post('/Driver/UpdateProfile', {
+                fullName: $('#fullName').val(),
+                phoneNumber: $('#phoneNumber').val(),
+                citizenId: $('#citizenId').val(),
+                licensePlate: $('#licensePlate').val()
+            }, function(res) {
+                if(res.success) {
+                    Swal.fire({
+                        icon: 'success', title: 'Thành công!', text: res.message, timer: 2000, showConfirmButton: false
+                    }).then(() => {
+                        location.reload(); // Tải lại trang để update tên trên góc phải nếu có đổi
+                    });
+                } else {
+                    Swal.fire('Lỗi', res.message, 'error');
+                }
+                btn.html(originalText).prop('disabled', false);
+            }).fail(function() {
+                Swal.fire('Lỗi', 'Không thể kết nối đến máy chủ', 'error');
+                btn.html(originalText).prop('disabled', false);
+            });
+        });
+    </script>
+}

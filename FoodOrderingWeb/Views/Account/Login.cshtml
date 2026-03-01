@@ -1,0 +1,72 @@
+﻿@{
+    ViewData["Title"] = "Đăng nhập";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="card-header bg-white text-center py-4 border-0">
+                    <h4 class="fw-bold text-success mb-0">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>ĐĂNG NHẬP
+                    </h4>
+                    <p class="text-muted small mb-0 mt-2">Chào mừng trở lại! Vui lòng nhập thông tin.</p>
+                </div>
+                <div class="card-body p-4 pt-0">
+
+                    @* Giữ lại hiển thị lỗi dạng text tĩnh này nếu muốn, hoặc xóa hẳn để dùng thông báo thả xuống *@
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger text-center rounded-3 p-2 mb-3 small">
+                            <i class="bi bi-exclamation-circle me-1"></i> @ViewBag.Error
+                        </div>
+                    }
+
+                    <form asp-controller="Account" asp-action="Login" method="post">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control rounded-3" name="email" id="emailInput" placeholder="Email hoặc Tên đăng nhập" required>
+                            <label for="emailInput">Email hoặc Tên đăng nhập</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control rounded-3" name="matKhau" id="passInput" placeholder="Mật khẩu" required>
+                            <label for="passInput">Mật khẩu</label>
+                        </div>
+
+                        <div class="d-flex justify-content-end mb-4">
+                            <a asp-action="ForgotPassword" class="text-decoration-none small text-success fw-bold">Quên mật khẩu?</a>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-pill shadow-sm mb-3">
+                            ĐĂNG NHẬP
+                        </button>
+                    </form>
+
+                    <div class="position-relative text-center my-4">
+                        <hr class="text-muted opacity-25">
+                        <span class="position-absolute top-50 start-50 translate-middle bg-white px-3 text-muted small">Hoặc đăng nhập bằng</span>
+                    </div>
+
+                    <a asp-controller="Account" asp-action="GoogleLogin" class="btn btn-outline-danger w-100 py-2 fw-bold rounded-pill d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-google"></i> Google
+                    </a>
+
+                    <div class="text-center mt-4">
+                        <p class="text-muted small">Chưa có tài khoản? <a asp-action="Register" class="text-success fw-bold text-decoration-none">Đăng ký ngay</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // 🔥 ĐÃ XÓA BỎ CÁC ĐOẠN HIỂN THỊ THÔNG BÁO TẠI ĐÂY
+            // Hệ thống sẽ tự động sử dụng hàm showGlobalNotification trong _Layout.cshtml
+            // Điều này giúp tránh việc hiển thị trùng lặp 2 thông báo cùng lúc.
+        });
+    </script>
+}

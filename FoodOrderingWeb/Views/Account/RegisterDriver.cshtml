@@ -1,0 +1,150 @@
+﻿@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+@{
+    ViewData["Title"] = "Đăng ký tài xế giao hàng";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    string currentName = HttpContextAccessor.HttpContext.Session.GetString("FullName") ?? "";
+    string currentPhone = HttpContextAccessor.HttpContext.Session.GetString("PhoneNumber") ?? "";
+}
+
+<style>
+    body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+    }
+
+    /* 🔥 BANNER TRẮNG TRONG SUỐT */
+    .glass-banner {
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+        padding: 50px 0;
+        text-align: center;
+        margin-top: -1px;
+        margin-bottom: 40px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+    }
+
+    /* 🔥 KHUNG FORM TRẮNG TRONG SUỐT */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+        padding: 40px;
+        border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .section-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .form-control-custom {
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0,0,0,0.1);
+        padding: 12px 15px;
+        border-radius: 10px;
+        transition: all 0.3s;
+    }
+
+        .form-control-custom:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+            background-color: #fff;
+        }
+
+    .form-label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #555;
+        margin-bottom: 8px;
+    }
+</style>
+
+<div class="glass-banner">
+    <h2 class="fw-bold" style="color: #0d6efd;"><i class="bi bi-bicycle"></i> ĐĂNG KÝ TRỞ THÀNH TÀI XẾ</h2>
+    <p class="text-muted mb-0">Gia nhập đội ngũ shipper OrderFood - Nhanh chóng, An toàn, Tiện lợi</p>
+</div>
+
+<div class="container mb-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-7">
+            <form id="driverRegisterForm" asp-action="RegisterDriver" asp-controller="Account" method="post">
+                <div class="glass-card">
+                    <div class="section-title"><i class="bi bi-person-vcard text-primary"></i> Thông tin bắt buộc</div>
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                            <input type="text" name="FullName" class="form-control form-control-custom fw-bold text-dark" value="@currentName" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                            <input type="text" name="PhoneNumber" class="form-control form-control-custom" value="@currentPhone" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Số CCCD / CMND <span class="text-danger">*</span></label>
+                            <input type="text" name="CitizenId" class="form-control form-control-custom" placeholder="Nhập 12 số CCCD..." required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Biển số xe đang đi <span class="text-danger">*</span></label>
+                            <input type="text" name="LicensePlate" class="form-control form-control-custom" placeholder="VD: 65-B1 123.45" required style="text-transform: uppercase;" />
+                        </div>
+                    </div>
+
+                    <div class="alert border-0 small mt-4 d-flex align-items-center" style="background: rgba(13, 110, 253, 0.08); border-left: 4px solid #0d6efd !important;">
+                        <i class="bi bi-shield-check text-primary fs-4 me-3"></i>
+                        <div class="text-dark">Cam kết cung cấp thông tin chính xác. Hệ thống sẽ duyệt hồ sơ của bạn trong vòng 24h.</div>
+                    </div>
+
+                    <div class="mt-5">
+                        <button type="submit" id="btnSubmitDriver" class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow-sm text-uppercase" style="font-size: 1.1rem; letter-spacing: 1px;">
+                            <i class="bi bi-send-check me-2"></i> Gửi hồ sơ đăng ký
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        $(document).ready(function () {
+            $('#driverRegisterForm').on('submit', function (e) {
+                e.preventDefault();
+                var btn = $('#btnSubmitDriver');
+                var originalText = btn.html();
+                btn.html('<span class="spinner-border spinner-border-sm"></span> Đang xử lý...').prop('disabled', true);
+
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function (res) {
+                        if (res.success) {
+                            Swal.fire({ icon: 'success', title: 'Thành công!', text: res.message, confirmButtonColor: '#0d6efd' })
+                            .then(() => { window.location.href = '/'; });
+                        } else {
+                            Swal.fire('Lỗi', res.message, 'error');
+                            btn.html(originalText).prop('disabled', false);
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('Lỗi hệ thống', 'Không thể kết nối tới máy chủ.', 'error');
+                        btn.html(originalText).prop('disabled', false);
+                    }
+                });
+            });
+        });
+    </script>
+}

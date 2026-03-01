@@ -1,0 +1,148 @@
+﻿@model FoodOrderingWeb.Models.Food
+
+@{
+    ViewData["Title"] = Model.FoodName;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    // XỬ LÝ ẢNH: Ưu tiên ảnh từ thư mục foods, nếu không có dùng ảnh mặc định
+    string detailImg = Model.ImageUrl;
+    if (string.IsNullOrEmpty(detailImg))
+    {
+        detailImg = "https://placehold.co/600x500?text=No+Image";
+    }
+    else if (!detailImg.StartsWith("http") && !detailImg.StartsWith("/"))
+    {
+        detailImg = "/images/foods/" + detailImg;
+    }
+}
+
+<div class="container py-5">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index" class="text-decoration-none text-muted">Trang chủ</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.FoodName</li>
+        </ol>
+    </nav>
+
+    <div class="row gx-5">
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <img src="@detailImg" class="img-fluid w-100" style="object-fit: cover; height: 500px;"
+                     alt="@Model.FoodName" onerror="this.src='https://placehold.co/600x500?text=Error'">
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <h1 class="fw-bold text-dark mb-2">@Model.FoodName</h1>
+            <h2 class="fw-bold text-success mb-3" id="displayPrice">@Model.Price.ToString("#,##0") đ</h2>
+
+            <p class="text-muted mb-4">
+                @(Model.Description ?? "Món ngon mời bạn thưởng thức! Sản phẩm được chế biến từ nguyên liệu tươi ngon nhất.")
+            </p>
+
+            <hr class="text-muted my-4 opacity-25">
+
+            @if (Model.IsActive == true)
+            {
+                <form asp-controller="Cart" asp-action="AddToCart" method="post" id="addToCartForm">
+                    <input type="hidden" name="foodId" value="@Model.FoodId" />
+
+                    <div class="mb-4">
+                        <label class="fw-bold mb-2"><i class="bi bi-arrows-angle-expand me-1"></i> Kích cỡ</label>
+                        <div class="d-flex gap-2">
+                            <input class="btn-check" type="radio" name="size" id="sizeS" value="Nhỏ" data-price="0" onchange="updateTotalPrice()" checked>
+                            <label class="btn btn-outline-secondary rounded-pill px-3" for="sizeS">Nhỏ</label>
+
+                            <input class="btn-check" type="radio" name="size" id="sizeM" value="Vừa" data-price="10000" onchange="updateTotalPrice()">
+                            <label class="btn btn-outline-secondary rounded-pill px-3" for="sizeM">Vừa (+10k)</label>
+
+                            <input class="btn-check" type="radio" name="size" id="sizeL" value="Lớn" data-price="20000" onchange="updateTotalPrice()">
+                            <label class="btn btn-outline-secondary rounded-pill px-3" for="sizeL">Lớn (+20k)</label>
+                        </div>
+                    </div>
+
+                    @if (Model.Category != null)
+                    {
+                        <div class="mb-4">
+                            <label class="fw-bold mb-2"><i class="bi bi-plus-circle me-1"></i> Topping</label>
+                            <div class="vstack gap-2">
+                                @if (Model.Category.CategoryName.Contains("Cơm") || Model.Category.CategoryName.Contains("Món chính"))
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="toppings" value="Trứng ốp la" data-price="5000" onchange="updateTotalPrice()">
+                                        <label class="form-check-label">Trứng ốp la (+5.000đ)</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="toppings" value="Canh thêm" data-price="5000" onchange="updateTotalPrice()">
+                                        <label class="form-check-label">Canh thêm (+5.000đ)</label>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="toppings" value="Thêm phô mai" data-price="10000" onchange="updateTotalPrice()">
+                                        <label class="form-check-label">Thêm phô mai (+10.000đ)</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <div class="mb-4">
+                        <label class="fw-bold mb-2">Ghi chú</label>
+                        <textarea name="note" class="form-control rounded-3" rows="2" placeholder="Ví dụ: Không hành, nhiều cay..."></textarea>
+                    </div>
+
+                    <div class="d-flex gap-3">
+                        <div class="input-group" style="width: 140px;">
+                            <button class="btn btn-outline-secondary" type="button" onclick="changeQty(-1)">-</button>
+                            <input type="number" id="qtyInput" name="quantity" class="form-control text-center fw-bold" value="1" min="1" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="changeQty(1)">+</button>
+                        </div>
+
+                        <button type="submit" class="btn btn-success flex-grow-1 rounded-pill fw-bold py-3 shadow-sm">
+                            Thêm vào giỏ - <span id="btnPrice">@Model.Price.ToString("#,##0")</span> đ
+                        </button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    // 🔥 FIX: Xử lý chuỗi giá từ C# để tránh lỗi dấu phẩy thập phân trong JS
+    const rawPrice = "@Model.Price".replace(/,/g, '');
+    const basePrice = parseFloat(rawPrice) || 0;
+
+    function updateTotalPrice() {
+        let currentPrice = basePrice;
+
+        // Tiền Size
+        const selectedSize = document.querySelector('input[name="size"]:checked');
+        if (selectedSize) currentPrice += parseInt(selectedSize.getAttribute('data-price')) || 0;
+
+        // Tiền Topping
+        const checkedToppings = document.querySelectorAll('input[name="toppings"]:checked');
+        checkedToppings.forEach(cb => currentPrice += parseInt(cb.getAttribute('data-price')) || 0);
+
+        const qty = parseInt(document.getElementById('qtyInput').value) || 1;
+        const finalTotal = currentPrice * qty;
+
+        // Hiển thị định dạng VN
+        document.getElementById('displayPrice').innerText = currentPrice.toLocaleString('vi-VN') + " đ";
+        document.getElementById('btnPrice').innerText = finalTotal.toLocaleString('vi-VN');
+    }
+
+    function changeQty(amount) {
+        const input = document.getElementById('qtyInput');
+        let newVal = parseInt(input.value) + amount;
+        if (newVal < 1) newVal = 1;
+        input.value = newVal;
+        updateTotalPrice();
+    }
+
+    document.addEventListener("DOMContentLoaded", updateTotalPrice);
+</script>

@@ -1,0 +1,154 @@
+﻿@model IEnumerable<FoodOrderingWeb.Models.Store>
+
+@{
+    ViewData["Title"] = "Quản lý Cửa hàng";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-success mb-1">🏪 QUẢN LÝ CỬA HÀNG</h3>
+            <p class="text-muted">Quản lý trạng thái, đánh giá và danh sách đối tác.</p>
+        </div>
+        <a asp-action="CreateStoreAccount" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+            <i class="bi bi-plus-lg me-2"></i> Thêm quán mới
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-5">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 rounded-start-pill ps-3"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0 rounded-end-pill" placeholder="Tìm kiếm cửa hàng...">
+                </div>
+            </div>
+            <div class="col-md-6 d-flex gap-2 justify-content-md-end">
+                <button class="btn btn-outline-success rounded-pill px-3 active">Tất cả</button>
+                <button class="btn btn-outline-secondary rounded-pill px-3">Đang mở</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        @foreach (var item in Model)
+        {
+            // Xử lý ảnh (Thêm đường dẫn nếu thiếu)
+            string imgSrc = item.ImageUrl;
+            if (string.IsNullOrEmpty(imgSrc)) imgSrc = "https://placehold.co/600x400?text=No+Image";
+            else if (!imgSrc.StartsWith("http") && !imgSrc.StartsWith("/")) imgSrc = "/images/stores/" + imgSrc;
+
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden store-card">
+
+                    <div class="position-relative ratio ratio-1x1">
+
+                        <img src="@imgSrc" class="card-img-top object-fit-cover" alt="@item.StoreName"
+                             onerror="this.src='https://placehold.co/600x400?text=Error'">
+
+                        <div class="position-absolute top-0 start-0 m-3">
+                            @if (item.IsOpen == true)
+                            {
+                                <span class="badge bg-success rounded-pill shadow-sm px-3 py-2">
+                                    <i class="bi bi-shop me-1"></i> Đang mở cửa
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary rounded-pill shadow-sm px-3 py-2">
+                                    <i class="bi bi-moon-stars-fill me-1"></i> Tạm đóng
+                                </span>
+                            }
+                        </div>
+
+                        <div class="position-absolute top-0 end-0 m-3">
+                            <form asp-action="DeleteStore" method="post" onsubmit="return confirm('Bạn có chắc muốn xóa quán này không?');">
+                                <input type="hidden" name="id" value="@item.StoreId" />
+                                <button class="btn btn-light rounded-circle shadow-sm text-danger action-btn" title="Xóa quán">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title fw-bold text-dark mb-0 text-truncate">@item.StoreName</h5>
+
+                            <form asp-action="ToggleRecommend" method="post">
+                                <input type="hidden" name="id" value="@item.StoreId" />
+                                <button type="submit" class="btn btn-sm border-0 p-0" title="Đánh giá cao">
+                                    @if (item.IsHighlyRated == true)
+                                    {
+                                        <i class="bi bi-star-fill text-warning fs-4"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-star text-muted fs-4"></i>
+                                    }
+                                </button>
+                            </form>
+                        </div>
+
+                        <p class="card-text text-muted small text-truncate">
+                            <i class="bi bi-geo-alt-fill text-success me-1"></i> @(item.Address ?? "Chưa cập nhật địa chỉ")
+                        </p>
+
+                        <div class="d-flex gap-2 mt-3">
+                            @if (item.IsHighlyRated == true)
+                            {
+                                <span class="badge bg-warning text-dark border border-warning bg-opacity-25">
+                                    <i class="bi bi-trophy-fill me-1"></i> Quán ngon đặc biệt
+                                </span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-white border-top-0 pt-0 pb-3">
+                        <hr class="text-muted opacity-25 mb-3">
+                        <form asp-action="ToggleOpen" method="post" class="d-grid">
+                            <input type="hidden" name="id" value="@item.StoreId" />
+                            @if (item.IsOpen == true)
+                            {
+                                <button class="btn btn-outline-secondary rounded-pill fw-bold">
+                                    <i class="bi bi-power me-2"></i> Đóng cửa quán
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-success rounded-pill fw-bold" style="background-color: #10b981; border: none;">
+                                    <i class="bi bi-power me-2"></i> Mở cửa quán
+                                </button>
+                            }
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .store-card {
+        transition: transform 0.2s;
+    }
+
+        .store-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+        }
+
+    .action-btn {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s;
+    }
+
+        .action-btn:hover {
+            transform: scale(1.1);
+        }
+</style>

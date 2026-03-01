@@ -1,0 +1,72 @@
+﻿@model List<FoodOrderingWeb.Models.Order>
+@{
+    ViewData["Title"] = "Đánh giá sao";
+    Layout = "~/Views/Shared/_DriverLayout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="page-title fw-bold mb-1">🌟 Thành tích của bạn</h1>
+            <p class="page-subtitle text-muted">Xem khách hàng nói gì về thái độ phục vụ của bạn</p>
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        @if (Model != null && Model.Count > 0)
+        {
+            foreach (var item in Model)
+            {
+                // 🔥 Tự tạo Avatar từ tên khách hàng
+                string userName = item.User?.FullName ?? "U";
+                string avatarUrl = !string.IsNullOrEmpty(item.User?.Avatar)
+                ? item.User.Avatar
+                : $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(userName)}&background=random&color=fff";
+
+                <div class="col">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex align-items-center mb-3">
+                                <img src="@avatarUrl"
+                                     class="rounded-circle border shadow-sm me-3"
+                                     style="width: 50px; height: 50px; object-fit: cover;"
+                                     onerror="this.src='https://ui-avatars.com/api/?name=User';">
+                                <div>
+                                    <h6 class="fw-bold mb-0">@(item.User?.FullName ?? "Khách hàng")</h6>
+                                    <small class="text-muted">Đơn #@item.OrderId • @item.OrderDate?.ToString("dd/MM/yyyy")</small>
+                                </div>
+                            </div>
+
+                            <div class="mb-2 text-warning d-flex align-items-center">
+                                <span class="fw-bold me-2 text-dark">@(item.DriverRating?.ToString("0.0") ?? "5.0")</span>
+                                @for (int i = 0; i < (item.DriverRating ?? 0); i++)
+                                {
+                                    <i class="bi bi-star-fill"></i>
+                                }
+                                @for (int i = (int)(item.DriverRating ?? 0); i < 5; i++)
+                                {
+                                    <i class="bi bi-star text-muted opacity-25"></i>
+                                }
+                            </div>
+
+                            <div class="bg-light p-3 rounded-3 mt-2 flex-grow-1">
+                                <p class="mb-0 text-dark fst-italic">
+                                    @(string.IsNullOrEmpty(item.DriverReview) ? "Khách hàng không để lại bình luận." : $"\"{item.DriverReview}\"")
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12 d-flex flex-column align-items-center justify-content-center w-100 text-center" style="min-height: 50vh;">
+                <img src="/images/no-reviews.png" alt="No Reviews" style="width: 150px; opacity: 0.5; margin-bottom: 20px;" onerror="this.style.display='none'">
+                <i class="bi bi-chat-dots text-muted opacity-50" style="font-size: 5rem; line-height: 1; display: none;"></i>
+                <h5 class="text-muted fw-bold mt-3">Chưa có đánh giá nào</h5>
+                <p class="text-secondary">Hãy giao hàng thật thân thiện để nhận được 5 sao nhé tài xế!</p>
+            </div>
+        }
+    </div>
+</div>

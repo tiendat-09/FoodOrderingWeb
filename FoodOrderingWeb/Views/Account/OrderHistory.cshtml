@@ -1,0 +1,391 @@
+﻿@model IEnumerable<FoodOrderingWeb.Models.Order>
+@{
+    ViewData["Title"] = "Lịch sử đặt hàng";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    body {
+        background-color: #f4f6f9;
+    }
+
+    .history-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        background: #fff;
+        padding: 20px;
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+        margin: 0;
+        list-style: none;
+    }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 11px;
+            width: 2px;
+            background: #e9ecef;
+        }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 25px;
+    }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+
+    .timeline-marker {
+        position: absolute;
+        left: -34px;
+        top: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #e9ecef;
+        border: 4px solid #fff;
+        box-shadow: 0 0 0 2px #e9ecef;
+        z-index: 1;
+    }
+
+    .timeline-content {
+        padding-top: 2px;
+    }
+
+    .timeline-title {
+        font-weight: 700;
+        margin-bottom: 5px;
+        color: #333;
+    }
+
+    .step-active .timeline-marker {
+        background: #00b96f;
+        box-shadow: 0 0 0 2px #00b96f;
+    }
+
+    .step-active .timeline-title {
+        color: #00b96f;
+    }
+
+    .step-cancel .timeline-marker {
+        background: #dc3545;
+        box-shadow: 0 0 0 2px #dc3545;
+    }
+
+    .step-cancel .timeline-title {
+        color: #dc3545;
+    }
+
+    .star-rating i {
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+        .star-rating i:hover {
+            transform: scale(1.2);
+        }
+</style>
+
+<div class="container py-5">
+    <h2 class="fw-bold text-primary mb-4">Lịch Sử Đặt Hàng</h2>
+
+    <div class="history-card">
+        <div class="table-responsive" id="order-table-container">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Mã đơn</th>
+                        <th>Ngày đặt</th>
+                        <th>Quán ăn</th>
+                        <th>Tổng tiền</th>
+                        <th>Trạng thái</th>
+                        <th class="text-center" style="min-width: 140px;">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        var s = (item.Status ?? "").ToLower();
+                        var pm = (item.PaymentMethod ?? "").ToLower(); // Lấy phương thức thanh toán
+
+                        <tr class="order-row" data-order-id="@item.OrderId" data-status="@s" data-payment="@pm">
+                            <td class="fw-bold text-muted ps-3">#@item.OrderId</td>
+                            <td>@(item.OrderDate?.ToString("dd/MM/yyyy HH:mm"))</td>
+                            <td class="fw-bold"><i class="bi bi-shop text-warning me-2"></i> @item.Store?.StoreName</td>
+                            <td class="fw-bold text-primary">@item.TotalAmount.ToString("N0") đ</td>
+                            <td>
+                                @{
+                                    string badgeClass = "bg-secondary";
+                                    string statusVN = item.Status;
+
+                                    if (s == "pending") { badgeClass = "bg-warning text-dark"; statusVN = "Chờ xác nhận"; }
+                                    else if (s == "preparing") { badgeClass = "bg-info text-dark"; statusVN = "Quán đang nấu"; }
+                                    else if (s == "shipping" || s == "delivering" || s == "arrived") { badgeClass = "bg-primary"; statusVN = "Đang giao hàng"; }
+                                    else if (s == "completed") { badgeClass = "bg-success"; statusVN = "Thành công"; }
+                                    else if (s == "cancelled") { badgeClass = "bg-danger"; statusVN = "Đã hủy"; }
+                                }
+                                <span class="badge @badgeClass rounded-pill px-3 py-2">@statusVN</span>
+                                @if (s == "cancelled" && !string.IsNullOrEmpty(item.CancelReason))
+                                {
+                                    <div class="small text-danger mt-1"><i class="bi bi-info-circle"></i> @item.CancelReason</div>
+                                }
+                            </td>
+                            <td class="text-center">
+                                @if (s == "completed")
+                                {
+                                    <div class="d-flex flex-column gap-2 align-items-center">
+                                        <button class="btn btn-sm btn-outline-warning fw-bold rounded-pill px-3 py-1 w-100 btn-rate-store" data-order-id="@item.OrderId" onclick="openStoreRatingModal('@item.OrderId', this)" style="font-size: 0.85rem;">
+                                            <i class="bi bi-star"></i> Đánh giá Quán
+                                        </button>
+
+                                        <button class="btn btn-sm btn-outline-info fw-bold rounded-pill px-3 py-1 w-100 btn-rate-driver" data-order-id="@item.OrderId" onclick="openDriverRatingModal('@item.OrderId', this)" style="font-size: 0.85rem;">
+                                            <i class="bi bi-star"></i> Đánh giá Tài xế
+                                        </button>
+                                    </div>
+                                }
+                                else if (s != "cancelled")
+                                {
+                                    <button class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3 py-1" onclick="openTrackingModal('@item.OrderId', '@s')" style="font-size: 0.85rem;">
+                                        <i class="bi bi-geo-alt me-1"></i> Theo dõi
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="trackingModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow-lg rounded-4"><div class="modal-header border-0 bg-light rounded-top-4"><h5 class="modal-title fw-bold text-primary"><i class="bi bi-bicycle me-2"></i>Tiến độ đơn hàng #<span id="trackOrderId"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-4"><ul class="timeline" id="trackingTimeline"></ul></div><div class="modal-footer border-0"><button type="button" class="btn btn-secondary w-100 rounded-pill fw-bold" data-bs-dismiss="modal">Đóng</button></div></div></div></div>
+<div class="modal fade" id="storeRatingModal" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content border-0 shadow-lg rounded-4"><div class="modal-header border-0 bg-warning text-dark rounded-top-4 py-2"><h6 class="modal-title fw-bold mb-0"><i class="bi bi-shop me-2"></i>Đánh giá Quán</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-4 text-center"><div class="d-flex justify-content-center gap-2 mb-3 text-warning star-rating store-stars" style="font-size: 2rem;"><i class="bi bi-star-fill" onclick="setStoreStar(1)" id="s_star1"></i><i class="bi bi-star-fill" onclick="setStoreStar(2)" id="s_star2"></i><i class="bi bi-star-fill" onclick="setStoreStar(3)" id="s_star3"></i><i class="bi bi-star-fill" onclick="setStoreStar(4)" id="s_star4"></i><i class="bi bi-star-fill" onclick="setStoreStar(5)" id="s_star5"></i></div><input type="hidden" id="storeRatingValue" value="5" /><textarea id="storeRatingComment" class="form-control bg-light border-0 small" rows="2" placeholder="Nhận xét món ăn..."></textarea></div><div class="modal-footer border-0 pt-0"><button type="button" class="btn btn-warning btn-sm w-100 rounded-pill fw-bold text-dark" onclick="submitStoreRating()">Gửi Đánh Giá</button></div></div></div></div>
+<div class="modal fade" id="driverRatingModal" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content border-0 shadow-lg rounded-4"><div class="modal-header border-0 bg-info text-dark rounded-top-4 py-2"><h6 class="modal-title fw-bold mb-0"><i class="bi bi-bicycle me-2"></i>Đánh giá Tài xế</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-4 text-center"><div class="d-flex justify-content-center gap-2 mb-3 text-info star-rating driver-stars" style="font-size: 2rem;"><i class="bi bi-star-fill" onclick="setDriverStar(1)" id="d_star1"></i><i class="bi bi-star-fill" onclick="setDriverStar(2)" id="d_star2"></i><i class="bi bi-star-fill" onclick="setDriverStar(3)" id="d_star3"></i><i class="bi bi-star-fill" onclick="setDriverStar(4)" id="d_star4"></i><i class="bi bi-star-fill" onclick="setDriverStar(5)" id="d_star5"></i></div><input type="hidden" id="driverRatingValue" value="5" /><textarea id="driverRatingComment" class="form-control bg-light border-0 small" rows="2" placeholder="Nhận xét thái độ tài xế..."></textarea></div><div class="modal-footer border-0 pt-0"><button type="button" class="btn btn-info btn-sm w-100 rounded-pill fw-bold text-dark" onclick="submitDriverRating()">Gửi Đánh Giá</button></div></div></div></div>
+
+@section Scripts {
+    <script>
+        let currentTrackingOrderId = null; let currentStoreBtnElement = null; let currentDriverBtnElement = null;
+
+        function checkRatedButtons() {
+            $('.btn-rate-store').each(function() {
+                let id = $(this).data('order-id');
+                if(localStorage.getItem('rated_store_' + id)) {
+                    $(this).removeClass('btn-outline-warning text-dark').addClass('btn-light text-muted disabled border-0').html('<i class="bi bi-check2"></i> Đã ĐG Quán');
+                    $(this).removeAttr('onclick');
+                }
+            });
+            $('.btn-rate-driver').each(function() {
+                let id = $(this).data('order-id');
+                if(localStorage.getItem('rated_driver_' + id)) {
+                    $(this).removeClass('btn-outline-info text-dark').addClass('btn-light text-muted disabled border-0').html('<i class="bi bi-check2"></i> Đã ĐG Tài xế');
+                    $(this).removeAttr('onclick');
+                }
+            });
+        }
+        $(document).ready(checkRatedButtons);
+
+        function openTrackingModal(orderId, status) {
+            currentTrackingOrderId = orderId;
+            $('#trackOrderId').text(orderId);
+            let timeline = $('#trackingTimeline');
+            timeline.html('');
+            let steps = [];
+            status = status.toLowerCase();
+
+            // CHỈ GIỮ LẠI TIÊU ĐỀ CHÍNH
+            if (status === 'pending') {
+                steps.push({ title: 'Đã đặt đơn', active: true });
+                steps.push({ title: 'Chờ quán xác nhận', active: true, isPulse: true });
+                steps.push({ title: 'Đang tìm tài xế', active: false });
+                steps.push({ title: 'Đang giao hàng', active: false });
+            }
+            else if (status === 'preparing') {
+                steps.push({ title: 'Quán đã nhận đơn', active: true });
+                steps.push({ title: 'Đang tìm Shipper', active: true, isPulse: true });
+                steps.push({ title: 'Tài xế lấy món', active: false });
+                steps.push({ title: 'Đang giao hàng', active: false });
+            }
+            else if (status === 'shipping') {
+                steps.push({ title: 'Tài xế đã nhận đơn', active: true });
+                steps.push({ title: 'Đang đến quán', active: true, isPulse: true });
+                steps.push({ title: 'Đang giao hàng', active: false });
+                steps.push({ title: 'Hoàn thành', active: false });
+            }
+            else if (status === 'delivering') {
+                steps.push({ title: 'Đã nhận đơn', active: true });
+                steps.push({ title: 'Đã lấy món', active: true });
+                steps.push({ title: 'Đang giao hàng', active: true, isPulse: true });
+                steps.push({ title: 'Hoàn thành', active: false });
+            }
+            else if (status === 'arrived') {
+                steps.push({ title: 'Đã lấy món', active: true });
+                steps.push({ title: 'Đang giao hàng', active: true });
+                steps.push({ title: 'Tài xế đã đến', active: true, isPulse: true });
+                steps.push({ title: 'Hoàn thành', active: false });
+            }
+
+            // RENDER RA GIAO DIỆN
+            steps.forEach(step => {
+                let activeClass = step.active ? 'step-active' : '';
+                let pulseHtml = step.isPulse ? '<span class="spinner-grow spinner-grow-sm text-primary float-end"></span>' : '';
+
+                let stepHtml = `
+                    <li class="timeline-item ${activeClass}">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title mb-0" style="padding-top: 2px;">${step.title} ${pulseHtml}</h6>
+                        </div>
+                    </li>`;
+                timeline.append(stepHtml);
+            });
+
+            // 🔥 ĐÂY LÀ ĐOẠN FIX LỖI MÀN HÌNH ĐEN 🔥
+            // Chỉ gọi lệnh hiển thị (show) khi Modal đang ở trạng thái TẮT
+            let modalEl = document.getElementById('trackingModal');
+            if (!modalEl.classList.contains('show')) {
+                // getOrCreateInstance giúp dùng lại 1 cái vỏ Modal duy nhất, không tạo mới
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        }
+        $('#trackingModal').on('hidden.bs.modal', function () { currentTrackingOrderId = null; });
+
+        function openStoreRatingModal(orderId, btnElem) { currentStoreBtnElement = btnElem; setStoreStar(5); $('#storeRatingComment').val(''); new bootstrap.Modal(document.getElementById('storeRatingModal')).show(); }
+        function setStoreStar(level) { $('#storeRatingValue').val(level); for(let i=1; i<=5; i++) { if(i <= level) $('#s_star'+i).removeClass('bi-star').addClass('bi-star-fill'); else $('#s_star'+i).removeClass('bi-star-fill').addClass('bi-star'); } }
+        function openDriverRatingModal(orderId, btnElem) { currentDriverBtnElement = btnElem; setDriverStar(5); $('#driverRatingComment').val(''); new bootstrap.Modal(document.getElementById('driverRatingModal')).show(); }
+        function setDriverStar(level) { $('#driverRatingValue').val(level); for(let i=1; i<=5; i++) { if(i <= level) $('#d_star'+i).removeClass('bi-star').addClass('bi-star-fill'); else $('#d_star'+i).removeClass('bi-star-fill').addClass('bi-star'); } }
+        function submitStoreRating() {
+            let orderId = $(currentStoreBtnElement).data('order-id');
+            let rating = $('#storeRatingValue').val();
+            let comment = $('#storeRatingComment').val();
+
+            // Gọi AJAX đẩy dữ liệu lên Controller
+            $.post('/Home/SubmitStoreRating', { orderId: orderId, rating: rating, review: comment }, function(res) {
+                if(res.success) {
+                    $('#storeRatingModal').modal('hide');
+                    localStorage.setItem('rated_store_' + orderId, 'true');
+                    checkRatedButtons();
+                    if(typeof showGlobalNotification === 'function') showGlobalNotification('Cảm ơn bạn đã đánh giá Quán!', 'success');
+                }
+            });
+        }
+
+        function submitDriverRating() {
+            let orderId = $(currentDriverBtnElement).data('order-id');
+            let rating = $('#driverRatingValue').val();
+            let comment = $('#driverRatingComment').val();
+
+            // Gọi AJAX đẩy dữ liệu lên Controller
+            $.post('/Home/SubmitDriverRating', { orderId: orderId, rating: rating, review: comment }, function(res) {
+                if(res.success) {
+                    $('#driverRatingModal').modal('hide');
+                    localStorage.setItem('rated_driver_' + orderId, 'true');
+                    checkRatedButtons();
+                    if(typeof showGlobalNotification === 'function') showGlobalNotification('Cảm ơn bạn đã đánh giá Bác tài!', 'success');
+                }
+            });
+        }
+        // 🔥 AJAX POLLING ĐÃ ĐƯỢC TỐI ƯU CỰC KỲ AN TOÀN
+        // 🔥 AJAX POLLING & LOGIC HOÀN TIỀN THỰC TẾ
+        $(document).ready(function () {
+            let orderStatuses = {};
+            $('.order-row').each(function() { orderStatuses[$(this).data('order-id')] = $(this).data('status'); });
+
+            // ==========================================
+            // CỖ MÁY KIỂM TRA HOÀN TIỀN (Chạy ngầm liên tục)
+            // ==========================================
+            function checkRefundStatus() {
+                for (let i = 0; i < localStorage.length; i++) {
+                    let key = localStorage.key(i);
+                    if (key && key.startsWith('refund_order_')) {
+                        let orderId = key.replace('refund_order_', '');
+                        let cancelTime = parseInt(localStorage.getItem(key));
+                        let now = new Date().getTime();
+
+                        // 🔥 ĐANG ĐỂ 10 GIÂY ĐỂ BẠN TEST.
+                        // Khi test xong, hãy đổi số 10000 thành (3 * 60 * 60 * 1000) để thành 3 tiếng nhé!
+                        let targetDelay = 10000;
+
+                        if (now >= cancelTime + targetDelay) {
+                            Swal.fire({
+                                title: 'TING TING! TIỀN ĐÃ VỀ',
+                                text: `Số tiền của đơn hàng bị hủy #${orderId} vừa được hoàn thành công vào tài khoản của bạn!`,
+                                icon: 'success',
+                                confirmButtonColor: '#00b96f'
+                            });
+                            localStorage.removeItem(key); // Hiện 1 lần rồi xóa trí nhớ
+                        }
+                    }
+                }
+            }
+            // Gọi kiểm tra hoàn tiền mỗi 3 giây
+            setInterval(checkRefundStatus, 3000);
+            // ==========================================
+
+            setInterval(function () {
+                if ($('.modal.show').length === 0 && !document.body.classList.contains('swal2-shown')) {
+                    $('.modal-backdrop').remove();
+                    $('body').removeClass('modal-open').css({ 'padding-right': '', 'overflow': '' });
+
+                    $('#order-table-container').load(location.href + ' #order-table-container > *', function() {
+                        checkRatedButtons();
+
+                        $('.order-row').each(function() {
+                            let id = $(this).data('order-id');
+                            let newStatus = $(this).data('status');
+                            let paymentMethod = $(this).data('payment') || "";
+                            let oldStatus = orderStatuses[id];
+
+                            if (oldStatus) {
+                                if (oldStatus !== 'completed' && newStatus === 'completed') {
+                                    if(typeof showGlobalNotification === 'function') showGlobalNotification('Đơn hàng #' + id + ' đã giao thành công!', 'success');
+                                }
+                                else if (oldStatus !== 'cancelled' && newStatus === 'cancelled') {
+                                    setTimeout(function() {
+                                        if (paymentMethod.includes('qr') || paymentMethod.includes('chuyển khoản') || paymentMethod.includes('vnpay')) {
+
+                                            // LƯU THỜI GIAN VỪA BỊ HỦY VÀO TRÍ NHỚ TRÌNH DUYỆT
+                                            localStorage.setItem('refund_order_' + id, new Date().getTime().toString());
+
+                                            Swal.fire({
+                                                title: 'Đơn Bị Hủy - Đang Xử Lý Hoàn Tiền',
+                                                text: `Quán đã hủy đơn #${id}. Hệ thống đang xử lý, tiền sẽ tự động hoàn về tài khoản trong ít giờ tới.`,
+                                                icon: 'info'
+                                            });
+                                        } else {
+                                            Swal.fire({ title: 'Đơn hàng bị hủy', text: `Rất tiếc, quán đã hủy đơn #${id} của bạn.`, icon: 'warning' });
+                                        }
+                                    }, 800);
+                                }
+                            }
+                            orderStatuses[id] = newStatus;
+                        });
+                    });
+                } else {
+                    if ($('#trackingModal').hasClass('show') && currentTrackingOrderId) {
+                        $.get(location.href, function(data) {
+                            let newRow = $(data).find('.order-row[data-order-id="' + currentTrackingOrderId + '"]');
+                            if (newRow.length > 0) {
+                                let liveStatus = newRow.data('status');
+                                if (liveStatus !== orderStatuses[currentTrackingOrderId]) {
+                                    openTrackingModal(currentTrackingOrderId, liveStatus);
+                                    orderStatuses[currentTrackingOrderId] = liveStatus;
+                                }
+                                if(liveStatus === 'completed' || liveStatus === 'cancelled') {
+                                    setTimeout(function() { $('#trackingModal').modal('hide'); }, 1000);
+                                }
+                            }
+                        });
+                    }
+                }
+            }, 4000);
+        });
+    </script>
+}

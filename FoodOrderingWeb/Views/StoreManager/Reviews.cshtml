@@ -1,0 +1,66 @@
+﻿@model List<FoodOrderingWeb.Models.Order>
+@{
+    ViewData["Title"] = "Đánh giá của khách hàng";
+    Layout = "~/Views/Shared/_StoreLayout.cshtml";
+}
+
+<div class="container-fluid">
+    <h1 class="page-title">⭐ Đánh giá từ khách hàng</h1>
+    <p class="page-subtitle">Xem khách hàng nói gì về món ăn của bạn</p>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        @if (Model != null && Model.Count > 0)
+        {
+            foreach (var item in Model)
+            {
+                // 🔥 Fix Avatar: Nếu không có ảnh, tự tạo ảnh theo tên khách
+                string userName = item.User?.FullName ?? "U";
+                string avatarUrl = !string.IsNullOrEmpty(item.User?.Avatar)
+                ? item.User.Avatar
+                : $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(userName)}&background=random&color=fff";
+
+                <div class="col">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <img src="@avatarUrl"
+                                     class="rounded-circle border shadow-sm me-3"
+                                     style="width: 50px; height: 50px; object-fit: cover;"
+                                     onerror="this.src='https://ui-avatars.com/api/?name=User';">
+                                <div>
+                                    <h6 class="fw-bold mb-0">@(item.User?.FullName ?? "Khách hàng")</h6>
+                                    <small class="text-muted">Đơn #@item.OrderId • @item.OrderDate?.ToString("dd/MM/yyyy")</small>
+                                </div>
+                            </div>
+
+                            <div class="mb-2 text-warning">
+                                @for (int i = 0; i < item.StoreRating; i++)
+                                {
+                                    <i class="bi bi-star-fill"></i>
+                                }
+                                @for (int i = (int)item.StoreRating; i < 5; i++)
+                                {
+                                    <i class="bi bi-star text-muted opacity-25"></i>
+                                }
+                            </div>
+
+                            <div class="bg-light p-3 rounded-3 mt-2">
+                                <p class="mb-0 text-dark fst-italic">
+                                    @(string.IsNullOrEmpty(item.StoreReview) ? "Khách hàng không để lại bình luận." : $"\"{item.StoreReview}\"")
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="d-flex flex-column align-items-center justify-content-center w-100 text-center" style="min-height: 50vh;">
+                <i class="bi bi-chat-dots text-muted opacity-50" style="font-size: 6rem; line-height: 1;"></i>
+                <h4 class="text-muted mt-3 fw-bold">Chưa có đánh giá nào từ khách hàng.</h4>
+                <p class="text-secondary">Khi khách hàng để lại nhận xét, nó sẽ hiển thị ở đây.</p>
+            </div>
+        }
+    </div>
+</div>

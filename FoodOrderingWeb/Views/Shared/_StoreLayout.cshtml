@@ -1,0 +1,207 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"] - Quản lý cửa hàng</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f5f6fa;
+        }
+
+        .header {
+            background: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #f39c12;
+            text-decoration: none;
+        }
+
+        .main-wrapper {
+            display: flex;
+            min-height: calc(100vh - 70px);
+        }
+
+        .sidebar {
+            width: 260px;
+            background: white;
+            padding: 20px 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        .menu-item {
+            padding: 12px 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #5a6c7d;
+            text-decoration: none;
+        }
+
+            .menu-item:hover {
+                background: #fff8e1;
+                color: #f39c12;
+                text-decoration: none;
+            }
+
+            .menu-item.active {
+                background: #fff3cd;
+                color: #f39c12;
+                font-weight: 600;
+                border-right: 4px solid #f39c12;
+                text-decoration: none;
+            }
+
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background: #f5f6fa;
+        }
+
+        .page-title {
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .page-subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        /* 🔥 PHẦN CSS BỔ SUNG ĐỂ FIX LỖI GIAO DIỆN CARDS 🔥 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center;
+            transition: transform 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.02);
+        }
+
+            .stat-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            }
+
+        .stat-value {
+            font-size: 26px;
+            font-weight: 800;
+            margin: 10px 0;
+            color: #2c3e50;
+        }
+
+        .stat-label {
+            color: #95a5a6;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-custom {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+
+        .table-custom {
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+            .table-custom thead th {
+                border: none;
+                color: #7f8c8d;
+                font-weight: 600;
+                text-transform: uppercase;
+                font-size: 12px;
+                padding: 15px;
+            }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/StoreManager" class="logo">
+            <span>🪙</span>
+            <span>Kênh Người Bán</span>
+        </a>
+        <a href="/" class="btn btn-outline-secondary rounded-pill px-4 fw-bold shadow-sm">
+            <i class="bi bi-house-door me-1"></i> Về trang chủ
+        </a>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="sidebar">
+            <a href="/StoreManager" class="menu-item @(ViewContext.RouteData.Values["Action"].ToString() == "Index" ? "active" : "")">
+                <span style="font-size: 20px;">📊</span> <span>Tổng quan</span>
+            </a>
+            <a href="/StoreManager/Orders" class="menu-item @(ViewContext.RouteData.Values["Action"].ToString() == "Orders" ? "active" : "")">
+                <span style="font-size: 20px;">📦</span> <span>Đơn hàng</span>
+            </a>
+            <a href="/StoreManager/Menu" class="menu-item @(ViewContext.RouteData.Values["Action"].ToString() == "Menu" ? "active" : "")">
+                <span style="font-size: 20px;">🍜</span> <span>Quản lý món ăn</span>
+            </a>
+
+
+            <a href="/StoreManager/Reviews" class="menu-item @(ViewContext.RouteData.Values["Action"].ToString() == "Reviews" ? "active" : "")">
+                <span style="font-size: 20px;">⭐</span> <span>Đánh giá</span>
+            </a>
+
+            <a href="/StoreManager/Info" class="menu-item @(ViewContext.RouteData.Values["Action"].ToString() == "Info" ? "active" : "")">
+                <span style="font-size: 20px;">🪙</span> <span>Thông tin quán</span>
+            </a>
+            <div style="border-top: 1px solid #eee; margin: 10px 20px;"></div>
+            <a href="/Account/Logout" class="menu-item text-danger fw-bold">
+                <span style="font-size: 20px;">🚪</span> <span>Đăng xuất</span>
+            </a>
+        </div>
+
+        <div class="main-content">
+            @RenderBody()
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

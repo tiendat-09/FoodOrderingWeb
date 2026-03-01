@@ -1,0 +1,142 @@
+﻿@model List<FoodOrderingWeb.Models.Store>
+@{
+    ViewData["Title"] = "Quản lý cửa hàng";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container-fluid p-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-dark mb-0"><i class="bi bi-shop me-2"></i> @ViewData["Title"]</h4>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Thông tin Quán</th>
+                            <th>Địa chỉ</th>
+                            <th class="text-center">Đóng / Mở cửa</th>
+                            <th class="text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var store in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <img src="@(string.IsNullOrEmpty(store.ImageUrl) ? "/images/stores/default_store.jpg" : store.ImageUrl)"
+                                                 class="rounded-circle object-fit-cover me-3 shadow-sm border"
+                                                 style="width: 55px; height: 55px;"
+                                                 onerror="this.src='/images/default-food.jpg'">
+                                            <div>
+                                                <h6 class="fw-bold mb-1 text-primary">@store.StoreName</h6>
+                                                <small class="text-muted"><i class="bi bi-telephone-fill me-1"></i>@(store.PhoneNumber ?? "Chưa có SĐT")</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="text-truncate d-inline-block" style="max-width: 300px;" title="@store.Address">
+                                            <i class="bi bi-geo-alt-fill text-danger me-1"></i> @store.Address
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-flex justify-content-center m-0">
+                                            <input class="form-check-input" type="checkbox" role="switch" style="width: 3.5em; height: 1.6em; cursor: pointer;"
+                                            @(store.IsActive == true ? "checked" : "")
+                                                   onchange="toggleStoreStatus(@store.StoreId, this.checked)">
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-info rounded-pill px-3 fw-bold" onclick="viewMenu(@store.StoreId, '@Html.Raw(store.StoreName)')">
+                                            <i class="bi bi-journal-text me-1"></i> Xem Menu
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="4" class="text-center text-muted py-4">Chưa có cửa hàng nào.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="storeMenuModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 bg-info text-white rounded-top-4">
+                <h5 class="modal-title fw-bold" id="menuModalTitle"><i class="bi bi-journal-check me-2"></i>Menu</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0" id="menuModalBody">
+            </div>
+            <div class="modal-footer border-0 bg-light rounded-bottom-4">
+                <button type="button" class="btn btn-secondary rounded-pill w-100 fw-bold" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function toggleStoreStatus(id, isActive) {
+            $.post('/Admin/ToggleStoreStatus', { id: id, isActive: isActive }, function(res) {
+                if(res.success) {
+                    Swal.fire({
+                        toast: true, position: 'top-end', icon: 'success',
+                        title: isActive ? 'Đã cho phép Quán mở cửa!' : 'Đã buộc Quán đóng cửa!',
+                        showConfirmButton: false, timer: 2000
+                    });
+                } else {
+                    Swal.fire('Lỗi', res.message, 'error');
+                    setTimeout(() => location.reload(), 1500);
+                }
+            });
+        }
+
+        // HÀM GỌI API LẤY MENU VÀ HIỂN THỊ LÊN MODAL
+        function viewMenu(storeId, storeName) {
+            $('#menuModalTitle').text('Thực đơn: ' + storeName);
+            $('#menuModalBody').html('<div class="p-5 text-center"><div class="spinner-border text-info"></div><p class="mt-2 text-muted">Đang tải...</p></div>');
+
+            var menuModal = new bootstrap.Modal(document.getElementById('storeMenuModal'));
+            menuModal.show();
+
+            $.get('/Admin/GetStoreMenu/' + storeId, function(res) {
+                if(res.success) {
+                    if(res.data.length === 0) {
+                        $('#menuModalBody').html('<div class="p-4 text-center text-muted"><i class="bi bi-inbox fs-1"></i><p class="mt-2">Quán này chưa thêm món ăn nào.</p></div>');
+                    } else {
+                        var html = '<ul class="list-group list-group-flush rounded-0">';
+                        res.data.forEach(item => {
+                            let img = item.imageUrl ? item.imageUrl : '/images/default_food.jpg';
+                            let price = item.price.toLocaleString('vi-VN');
+                            html += `
+                                <li class="list-group-item d-flex justify-content-between align-items-center p-3 border-bottom">
+                                    <div class="d-flex align-items-center">
+                                        <img src="${img}" style="width:60px;height:60px;object-fit:cover;border-radius:10px;" class="me-3 shadow-sm" onerror="this.src='/images/default-food.jpg'">
+                                        <span class="fw-bold text-dark">${item.foodName}</span>
+                                    </div>
+                                    <span class="text-danger fw-bold bg-danger-subtle px-3 py-1 rounded-pill">${price}đ</span>
+                                </li>`;
+                        });
+                        html += '</ul>';
+                        $('#menuModalBody').html(html);
+                    }
+                } else {
+                    $('#menuModalBody').html('<div class="p-4 text-center text-danger">Lỗi tải dữ liệu.</div>');
+                }
+            });
+        }
+    </script>
+}

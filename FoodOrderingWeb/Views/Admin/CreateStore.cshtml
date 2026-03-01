@@ -1,0 +1,129 @@
+﻿@model FoodOrderingWeb.Models.Store
+@{
+    ViewData["Title"] = "Thêm quán ăn mới";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+<style>
+    .upload-box {
+        border: 2px dashed #d1d9e0;
+        border-radius: 15px;
+        transition: all 0.2s;
+        cursor: pointer;
+        background: #f8f9fa;
+        position: relative;
+        overflow: hidden;
+        height: 250px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .upload-box:hover {
+            border-color: #00b074;
+            background: #f0fdf4;
+        }
+
+    .form-control, .form-select {
+        border-radius: 10px;
+        padding: 12px 15px;
+        border: 1px solid #dee2e6;
+    }
+
+        .form-control:focus {
+            border-color: #00b074;
+            box-shadow: 0 0 0 0.25rem rgba(0, 176, 116, 0.1);
+        }
+
+    .preview-card {
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+</style>
+
+<div class="d-flex align-items-center mb-4">
+    <a asp-action="ManageStores" class="btn btn-light rounded-circle me-3 shadow-sm">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+        <h3 class="fw-bold text-dark mb-0">🆕 Thêm quán ăn mới</h3>
+        <p class="text-muted small mb-0">Khởi tạo đối tác mới trên hệ thống</p>
+    </div>
+</div>
+
+<form asp-controller="Admin" asp-action="CreateStore" method="post" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 p-4">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Tên cửa hàng <span class="text-danger">*</span></label>
+                        <input asp-for="StoreName" class="form-control" placeholder="Ví dụ: Cơm Tấm Ba Ghiền" required id="inputName" oninput="updatePreview()">
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Địa chỉ chính xác <span class="text-danger">*</span></label>
+                        <input asp-for="Address" class="form-control" placeholder="Số nhà, tên đường, quận/huyện..." required id="inputAddress" oninput="updatePreview()">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Giờ mở cửa</label>
+                        <input asp-for="OpeningTime" type="time" class="form-control" id="inputOpen" oninput="updatePreview()">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Giờ đóng cửa</label>
+                        <input asp-for="ClosingTime" type="time" class="form-control" id="inputClose" oninput="updatePreview()">
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Mô tả ngắn</label>
+                        <textarea asp-for="Description" class="form-control" rows="3" placeholder="Giới thiệu về quán..." id="inputDesc" oninput="updatePreview()"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                <label class="form-label fw-bold mb-3">Hình ảnh đại diện</label>
+                <div class="upload-box mb-3" onclick="document.getElementById('fileInput').click()">
+                    <div class="text-center" id="uploadPlaceholder">
+                        <i class="bi bi-cloud-arrow-up display-4 text-muted"></i>
+                        <p class="small text-muted mb-0">Bấm để tải ảnh lên</p>
+                    </div>
+                    <img id="imagePreview" src="#" class="img-fluid d-none" style="width:100%; height:100%; object-fit:cover;">
+                </div>
+                <input type="file" name="imageFile" id="fileInput" class="d-none" accept="image/*" onchange="previewImg(this)">
+                <p class="text-muted small text-center"><i class="bi bi-info-circle me-1"></i> Định dạng: JPG, PNG (Max 5MB)</p>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-success btn-lg rounded-pill fw-bold shadow-sm">
+                    <i class="bi bi-check-lg me-2"></i> XÁC NHẬN TẠO QUÁN
+                </button>
+                <a asp-action="ManageStores" class="btn btn-light btn-lg rounded-pill fw-bold border text-muted">Hủy bỏ</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+    function previewImg(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('imagePreview').src = e.target.result;
+                document.getElementById('imagePreview').classList.remove('d-none');
+                document.getElementById('uploadPlaceholder').classList.add('d-none');
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function updatePreview() {
+        // Bạn có thể thêm code cập nhật preview card ở đây nếu muốn hiện 1 cái card mẫu bên cạnh
+    }
+</script>

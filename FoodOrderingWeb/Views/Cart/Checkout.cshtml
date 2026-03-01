@@ -1,0 +1,414 @@
+﻿@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+@model global::FoodOrderingWeb.Models.Checkout
+@using FoodOrderingWeb.Helpers
+
+@{
+    ViewData["Title"] = "Thanh toán";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    body {
+        background: #f8f9fa !important;
+    }
+
+    .checkout-wrapper {
+        padding: 10px 0;
+        zoom: 0.85;
+        max-width: 1350px;
+        margin: 0 auto;
+    }
+
+    .checkout-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 25px 30px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        border: none;
+    }
+
+    .card-right-sticky {
+        display: flex;
+        flex-direction: column;
+        height: fit-content;
+    }
+
+    .section-title {
+        font-weight: 800;
+        font-size: 1.25rem;
+        color: #333;
+        border-left: 5px solid #00b96f;
+        padding-left: 15px;
+        margin-bottom: 20px;
+    }
+
+    .payment-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    .payment-item input {
+        display: none;
+    }
+
+    .payment-box {
+        border: 2px solid #eee;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: 0.3s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .payment-box i {
+            font-size: 1.5rem;
+        }
+
+    .payment-item input:checked + .payment-box {
+        border-color: #00b96f;
+        background: #f0fff4;
+        color: #00b96f;
+    }
+
+    .order-items-list {
+        max-height: 320px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+
+        .order-items-list::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .order-items-list::-webkit-scrollbar-thumb {
+            background: #eee;
+            border-radius: 10px;
+        }
+
+    .order-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #f8f9fa;
+    }
+
+        .order-item img {
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            object-fit: cover;
+        }
+
+    .item-info {
+        flex: 1;
+    }
+
+        .item-info .name {
+            margin: 0;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .item-info .qty {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #777;
+        }
+
+    .item-price-total {
+        font-weight: 700;
+        color: #333;
+    }
+
+    .btn-confirm-order {
+        background: #00b96f;
+        color: white;
+        font-weight: 800;
+        padding: 18px;
+        border-radius: 12px;
+        border: none;
+        font-size: 1.1rem;
+        transition: 0.3s;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+        .btn-confirm-order:hover {
+            background: #008f56;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,185,111,0.2);
+        }
+
+    .form-control-custom {
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+        background-color: #fafafa;
+    }
+</style>
+
+<div class="checkout-wrapper">
+    <div class="container-fluid px-4">
+        <h3 class="fw-bold mb-4"><i class="bi bi-shield-check text-success me-2"></i>Xác nhận thanh toán</h3>
+
+        <input type="hidden" name="ShippingFee" id="hiddenShippingFee" value="0" />
+        <input type="hidden" name="DistanceKm" id="hiddenDistanceKm" value="0" />
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="checkout-card mb-4">
+                    <h5 class="section-title">Thông đón nhận hàng</h5>
+                    <div class="row mt-3">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-muted">Họ và tên người nhận <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-custom" id="inputReceiverName" value="@Model.FullName" placeholder="Nhập tên người nhận..." required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-muted">Số điện thoại liên hệ <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-custom" id="inputReceiverPhone" value="@Model.PhoneNumber" placeholder="Nhập số điện thoại..." required>
+                        </div>
+
+                        @if (ViewBag.CurrentStore != null)
+                        {
+                            var store = ViewBag.CurrentStore;
+                            <input type="hidden" id="fixedStoreId" value="@store.StoreId" />
+                            <input type="hidden" id="fixedStoreLat" value="@store.Latitude" />
+                            <input type="hidden" id="fixedStoreLng" value="@store.Longitude" />
+                            <input type="hidden" id="fixedStoreName" value="@store.StoreName" />
+
+                            <div class="col-12 mb-3">
+                                <label class="form-label fw-bold small text-muted">Đang đặt hàng từ chi nhánh</label>
+                                <div class="form-control form-control-custom bg-light fw-bold text-primary" style="border: 1px solid #cce5ff;">
+                                    <i class="bi bi-shop me-2"></i> @store.StoreName - @store.Address
+                                </div>
+                            </div>
+                        }
+
+                        <div class="col-12 mb-3">
+                            <label class="form-label fw-bold small text-muted">Địa chỉ nhận hàng (Giao đến đâu?) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-custom" id="detailAddress" name="Address" value="@Model.Address" placeholder="Số nhà, tên đường, phường/xã..." required>
+
+                            <button type="button" class="btn btn-sm btn-outline-success mt-2 fw-bold w-100" id="btnGetLocation">
+                                <i class="bi bi-geo-alt-fill"></i> Định vị & Tính phí ship đến vị trí của tôi
+                            </button>
+                            <div id="distanceInfo" class="text-primary small mt-2 fw-bold"></div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" style="border-top: 2px dashed #ddd;" />
+
+                    <h5 class="section-title">Phương thức thanh toán</h5>
+                    <div class="payment-grid mt-3">
+                        <label class="payment-item">
+                            <input type="radio" name="paymentMethod" id="payCOD" value="COD" checked>
+                            <div class="payment-box">
+                                <i class="bi bi-cash-stack"></i>
+                                <span class="fw-bold">Tiền mặt (COD)</span>
+                            </div>
+                        </label>
+                        <label class="payment-item">
+                            <input type="radio" name="paymentMethod" id="payQR" value="VIETQR" onchange="if(this.checked) showQRModal()">
+                            <div class="payment-box">
+                                <i class="bi bi-qr-code-scan"></i>
+                                <span class="fw-bold">Chuyển khoản (VietQR)</span>
+                            </div>
+                        </label>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="checkout-card card-right-sticky">
+                    <h5 class="section-title mb-4">Đơn hàng của bạn</h5>
+
+                    <div class="order-items-list flex-grow-1">
+                        @foreach (var item in Model.CartItems)
+                        {
+                            <div class="order-item">
+                                <img src="@item.ImageUrl" onerror="this.src='/images/default-food.jpg'">
+                                <div class="item-info">
+                                    <p class="name">@item.FoodName</p>
+                                    <p class="qty">Số lượng: @item.Quantity</p>
+                                </div>
+                                <div class="item-price-total">@((item.Price * item.Quantity).ToString("N0"))đ</div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="order-summary-footer mt-auto pt-3 border-top">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Tạm tính</span>
+                            <span class="fw-bold">@Model.TotalAmount.ToString("N0")đ</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Phí vận chuyển</span>
+                            <span class="text-success fw-bold" id="shippingFeeDisplay">Chưa tính</span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-3">
+                            <span class="fs-5 fw-bold">Tổng cộng</span>
+                            <span class="fs-4 fw-bold text-success" id="totalOrderDisplay">@Model.TotalAmount.ToString("N0")đ</span>
+                        </div>
+
+                        <button class="btn-confirm-order" id="btnPlaceOrder">
+                            XÁC NHẬN ĐẶT HÀNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 bg-success text-white rounded-top-4">
+                <h5 class="modal-title fw-bold" id="qrModalLabel"><i class="bi bi-qr-code-scan me-2"></i>Quét mã thanh toán</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <h6 class="text-primary fw-bold mb-3">Vui lòng quét mã QR bên dưới để thanh toán</h6>
+
+                <div class="bg-light p-3 rounded-4 mb-3 d-inline-block position-relative" style="min-height: 250px; min-width: 250px;">
+                    <img src="~/images/qr.jpg" alt="Mã QR Thanh Toán" style="max-width: 250px; width: 100%; border-radius: 10px; border: 5px solid white;">
+                </div>
+
+                <div class="alert alert-warning small border-0 mb-0 text-start">
+                    <i class="bi bi-info-circle me-1"></i> Sau khi chuyển khoản thành công, vui lòng đóng bảng này và bấm <strong>"Xác nhận đặt hàng"</strong>.
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary w-100 rounded-pill fw-bold" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // HÀM HIỂN THỊ MODAL MÃ QR (Rút gọn tối đa vì dùng ảnh tĩnh)
+        function showQRModal() {
+            var qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
+            qrModal.show();
+        }
+
+        $(document).ready(function() {
+            // Tiền gốc lúc chưa có ship
+            let subtotal = @Model.TotalAmount;
+
+            // --- XỬ LÝ TÍNH PHÍ SHIP ---
+            $('#btnGetLocation').click(function() {
+                let btn = $(this);
+                let storeLat = parseFloat($('#fixedStoreLat').val());
+                let storeLng = parseFloat($('#fixedStoreLng').val());
+                let storeName = $('#fixedStoreName').val();
+
+                if (!storeLat || !storeLng || isNaN(storeLat)) {
+                    if (typeof showGlobalNotification === 'function') {
+                        showGlobalNotification('Quán chưa cập nhật tọa độ!', false);
+                    } else {
+                        Swal.fire('Chú ý', 'Quán chưa có tọa độ.', 'warning');
+                    }
+                    return;
+                }
+
+                btn.html('<span class="spinner-border spinner-border-sm"></span> Đang xử lý...');
+
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        let userLat = position.coords.latitude;
+                        let userLng = position.coords.longitude;
+
+                        $.ajax({
+                            url: '/Cart/CalculateShippingFee',
+                            type: 'POST',
+                            data: { userLat: userLat, userLng: userLng, storeLat: storeLat, storeLng: storeLng },
+                            success: function(res) {
+                                if (res.success) {
+                                    $('#hiddenShippingFee').val(res.fee);
+                                    $('#hiddenDistanceKm').val(res.distance);
+
+                                    let textInfo = res.fee === 0
+                                        ? `<i class="bi bi-info-circle"></i> Freeship từ ${storeName} (${res.distance} km)`
+                                        : `<i class="bi bi-info-circle"></i> Giao từ ${storeName} (${res.distance} km)`;
+
+                                    $('#distanceInfo').html(textInfo);
+                                    $('#shippingFeeDisplay').text(res.fee === 0 ? "Miễn phí" : res.fee.toLocaleString('vi-VN') + 'đ');
+
+                                    // CỘNG SHIP VÀO TỔNG TIỀN VÀ HIỂN THỊ LẠI
+                                    let total = subtotal + res.fee;
+                                    $('#totalOrderDisplay').text(total.toLocaleString('vi-VN') + 'đ');
+
+                                    btn.html('<i class="bi bi-geo-alt-fill"></i> Đã tính phí ship');
+                                    btn.removeClass('btn-outline-success').addClass('btn-success text-white');
+                                }
+                            }
+                        });
+                    }, function(error) {
+                        Swal.fire('Lỗi', 'Vui lòng cho phép định vị!', 'error');
+                        btn.html('<i class="bi bi-geo-alt-fill"></i> Định vị & Tính phí ship');
+                    });
+                }
+            });
+
+            // --- XỬ LÝ NÚT XÁC NHẬN ĐẶT HÀNG ---
+            $('#btnPlaceOrder').on('click', function (e) {
+                e.preventDefault();
+                let receiverName = $('#inputReceiverName').val().trim();
+                let receiverPhone = $('#inputReceiverPhone').val().trim();
+                let address = $('#detailAddress').val().trim();
+
+                if (!receiverName || !receiverPhone || !address) {
+                    Swal.fire('Thiếu thông tin', 'Vui lòng điền đầy đủ thông tin nhận hàng.', 'warning');
+                    return;
+                }
+
+                if ($('#hiddenShippingFee').val() == "0" && subtotal > 0 && $('#shippingFeeDisplay').text() === "Chưa tính") {
+                     Swal.fire('Thiếu phí ship', 'Hãy bấm tính phí ship trước khi đặt hàng!', 'warning');
+                     return;
+                }
+
+                let btnPlace = $(this);
+                btnPlace.html('<span class="spinner-border spinner-border-sm me-2"></span>ĐANG XỬ LÝ...').prop('disabled', true);
+
+                let dataToSend = {
+                    receiverName: receiverName,
+                    receiverPhone: receiverPhone,
+                    address: address,
+                    paymentMethod: $('input[name="paymentMethod"]:checked').val() || 'COD',
+                    storeId: $('#fixedStoreId').val() || '0',
+                    shippingFee: $('#hiddenShippingFee').val() || '0'
+                };
+
+                $.ajax({
+                    url: '/Cart/ProcessOrder',
+                    type: 'POST',
+                    data: dataToSend,
+                    success: function (res) {
+                        if (res.success) {
+                            Swal.fire({
+                                icon: 'success', title: 'Đặt hàng thành công!', text: 'Đơn hàng đã được gửi tới quán.',
+                                timer: 2000, showConfirmButton: false
+                            }).then(() => {
+                                window.location.href = '/Account/OrderHistory';
+                            });
+                        } else {
+                            Swal.fire('Lỗi', res.message, 'error');
+                            btnPlace.html('XÁC NHẬN ĐẶT HÀNG').prop('disabled', false);
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+}

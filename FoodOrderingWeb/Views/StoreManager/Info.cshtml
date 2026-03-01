@@ -1,0 +1,300 @@
+﻿@model FoodOrderingWeb.Models.Store
+@{
+    ViewData["Title"] = "Thông tin cửa hàng";
+    Layout = "~/Views/Shared/_StoreLayout.cshtml";
+    var debugAvatar = Context.Session.GetString("Avatar");
+    var debugFullName = Context.Session.GetString("FullName");
+
+    // Xử lý dữ liệu lịch cũ
+    string existingSchedule = Model.OperatingDays;
+    if (string.IsNullOrEmpty(existingSchedule) || !existingSchedule.StartsWith("{"))
+    {
+        existingSchedule = "{}";
+    }
+}
+
+<style>
+    /* CSS cho bong bóng lịch */
+    .schedule-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .schedule-bubble {
+        cursor: pointer;
+        border-radius: 12px;
+        padding: 8px 15px;
+        text-align: center;
+        min-width: 90px;
+        border: 1px solid #dee2e6;
+        transition: 0.2s;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+        .schedule-bubble:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+    .bubble-active {
+        background-color: #fff3cd;
+        color: #f39c12;
+        border-color: #f39c12;
+    }
+
+        .bubble-active .day-label {
+            font-weight: 800;
+        }
+
+    .bubble-inactive {
+        background-color: #f8f9fa;
+        color: #adb5bd;
+    }
+
+    .store-logo-preview {
+        max-height: 250px;
+        width: 100%;
+        object-fit: contain;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 20px;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+</style>
+
+<h1 class="page-title">🪙 Thông tin cửa hàng</h1>
+<p class="page-subtitle">Quản lý thông tin và cài đặt của quán</p>
+
+<div class="card-custom">
+    <form asp-action="UpdateInfo" asp-controller="StoreManager" method="post" enctype="multipart/form-data" id="storeInfoForm">
+        <input type="hidden" asp-for="StoreId" />
+        <input type="hidden" asp-for="OwnerId" />
+        <input type="hidden" asp-for="ImageUrl" />
+        <input type="hidden" asp-for="OperatingDays" id="hiddenOperatingDaysJson" />
+
+        <div class="row g-4">
+            <div class="col-lg-4 text-center">
+                <div class="section-header justify-content-center">
+                    <span>🖼️</span><span>Logo quán</span>
+                </div>
+                <div class="mb-3">
+                    <img id="imgPreview"
+                         src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "/images/stores/default_store.jpg" : Model.ImageUrl + "?v=" + DateTime.Now.Ticks)"
+                         class="store-logo-preview" alt="Logo">
+                </div>
+                <div class="d-grid gap-2 col-10 mx-auto">
+                    <label for="imageUpload" class="btn-store btn-store-primary">
+                        <i class="bi bi-cloud-upload me-2"></i>Tải logo mới
+                    </label>
+                    <input type="file" name="imageFile" id="imageUpload" class="d-none" accept="image/*" onchange="previewImage(this)">
+                    <small class="text-muted fst-italic">Khuyên dùng ảnh PNG đã xóa nền</small>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="section-header">
+                    <span>ℹ️</span><span>Thông tin cơ bản</span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Tên quán hiển thị</label>
+                    <input asp-for="StoreName" class="form-control fw-bold" style="color: #f39c12; font-size: 18px;" required />
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Số điện thoại</label>
+                        <input asp-for="PhoneNumber" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Địa chỉ</label>
+                        <input asp-for="Address" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Mô tả ngắn</label>
+                    <textarea asp-for="Description" class="form-control" rows="2" placeholder="Giới thiệu ngắn về quán của bạn..."></textarea>
+                </div>
+
+                <div class="mt-4 pt-3" style="border-top: 2px solid #f0f0f0;">
+                    <div class="section-header">
+                        <span>🕐</span><span>Lịch hoạt động</span>
+                    </div>
+                    <div id="weeklyScheduleContainer" class="schedule-container"></div>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-end gap-3 mt-4 pt-4" style="border-top: 2px solid #f0f0f0;">
+                    <div class="form-check form-switch me-auto">
+                        <input class="form-check-input" type="checkbox" id="statusSwitch" name="IsActive" value="true" @(Model.IsActive == true ? "checked" : "") style="cursor: pointer; width: 50px; height: 25px;">
+                        <input name="IsActive" type="hidden" value="false">
+                        <label class="form-check-label fw-bold" for="statusSwitch" style="cursor: pointer; font-size: 16px;">
+                            Đang mở quán
+                        </label>
+                    </div>
+                    <button type="submit" id="btnSaveInfo" class="btn-store btn-store-primary" style="padding: 10px 30px; font-size: 16px;">
+                        <i class="bi bi-check2-circle me-2"></i>Lưu thông tin
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="modal fade" id="timeEditModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white;">
+                <h6 class="modal-title fw-bold" id="modalDayLabel">Thứ...</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="currentEditingDay" />
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="dayActiveSwitch" checked>
+                    <label class="form-check-label fw-bold">Có hoạt động</label>
+                </div>
+                <div id="timeInputsArea">
+                    <div class="mb-2"><label class="small">Mở cửa:</label><input type="time" id="modalStartTime" class="form-control"></div>
+                    <div class="mb-2"><label class="small">Đóng cửa:</label><input type="time" id="modalEndTime" class="form-control"></div>
+                </div>
+            </div>
+            <div class="modal-footer p-2">
+                <button type="button" class="btn-store btn-store-primary w-100" onclick="saveDaySchedule()">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Preview ảnh
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) { document.getElementById('imgPreview').src = e.target.result; }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // JS Lịch
+        const daysMap = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+        let scheduleData = {};
+        const defaultS = '08:00', defaultE = '22:00';
+
+        function initScheduleData() {
+            try { scheduleData = JSON.parse('@Html.Raw(existingSchedule)'); } catch { scheduleData = {}; }
+            daysMap.forEach(d => {
+                if(!scheduleData[d]) scheduleData[d] = { start: defaultS, end: defaultE, active: (d!='T7' && d!='CN') };
+            });
+            renderScheduleBubbles();
+        }
+
+        function renderScheduleBubbles() {
+            const container = document.getElementById('weeklyScheduleContainer');
+            container.innerHTML = '';
+            daysMap.forEach(d => {
+                const data = scheduleData[d];
+                const bubble = document.createElement('div');
+                bubble.className = `schedule-bubble ${data.active ? 'bubble-active' : 'bubble-inactive'}`;
+                bubble.innerHTML = `<span class="day-label">${d}</span><span class="small">${data.active ? (data.start + '-' + data.end) : 'Nghỉ'}</span>`;
+                bubble.onclick = () => openEditModal(d);
+                container.appendChild(bubble);
+            });
+            document.getElementById('hiddenOperatingDaysJson').value = JSON.stringify(scheduleData);
+        }
+
+        const myModal = new bootstrap.Modal(document.getElementById('timeEditModal'));
+        const daySwitch = document.getElementById('dayActiveSwitch');
+        const timeArea = document.getElementById('timeInputsArea');
+
+        function openEditModal(day) {
+            document.getElementById('modalDayLabel').innerText = day;
+            document.getElementById('currentEditingDay').value = day;
+            const data = scheduleData[day];
+            daySwitch.checked = data.active;
+            document.getElementById('modalStartTime').value = data.start;
+            document.getElementById('modalEndTime').value = data.end;
+            toggleTime(data.active);
+            myModal.show();
+        }
+
+        daySwitch.onchange = function() { toggleTime(this.checked); }
+        function toggleTime(active) { timeArea.style.opacity = active ? '1' : '0.3'; timeArea.style.pointerEvents = active ? 'auto' : 'none'; }
+
+        function saveDaySchedule() {
+            const day = document.getElementById('currentEditingDay').value;
+            scheduleData[day] = {
+                active: daySwitch.checked,
+                start: document.getElementById('modalStartTime').value || defaultS,
+                end: document.getElementById('modalEndTime').value || defaultE
+            };
+            renderScheduleBubbles();
+            myModal.hide();
+        }
+
+        document.addEventListener('DOMContentLoaded', initScheduleData);
+
+        // 🔥 XỬ LÝ LƯU THÔNG TIN BẰNG AJAX (KHÔNG RESET TRANG)
+        $('#storeInfoForm').on('submit', function (e) {
+            e.preventDefault(); // Ngăn chặn tải lại trang mặc định
+
+            let btn = $('#btnSaveInfo');
+            let originalText = btn.html();
+
+            // Đổi trạng thái nút thành đang load
+            btn.html('<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...').prop('disabled', true);
+
+            var isOpen = $('#statusSwitch').is(':checked');
+            var statusText = isOpen ? "Đã mở quán!" : "Đã đóng quán!";
+
+            $('#hiddenOperatingDaysJson').val(JSON.stringify(scheduleData));
+            var formData = new FormData(this);
+
+            $.ajax({
+                url: $(this).attr('action'),
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (res) {
+                    btn.html(originalText).prop('disabled', false); // Trả lại nút ban đầu
+
+                    if (res.success) {
+                        // Hiện thông báo ở góc màn hình siêu mượt mà không reload trang
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Lưu thành công!',
+                            text: 'Trạng thái: ' + statusText,
+                            showConfirmButton: false,
+                            timer: 2500,
+                            timerProgressBar: true
+                        });
+                    } else {
+                        Swal.fire('Lỗi', res.message || 'Không thể lưu thông tin.', 'error');
+                    }
+                },
+                error: function () {
+                    btn.html(originalText).prop('disabled', false);
+                    Swal.fire('Lỗi hệ thống', 'Mất kết nối với máy chủ.', 'error');
+                }
+            });
+        });
+    </script>
+}

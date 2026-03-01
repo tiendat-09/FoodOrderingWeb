@@ -1,0 +1,240 @@
+﻿@model FoodOrderingWeb.Models.Order
+@{
+    ViewData["Title"] = "Theo dõi đơn hàng #" + Model.OrderId;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    string step1 = "active";
+    string step2 = ""; string step3 = ""; string step4 = "";
+
+    if (Model.Status == "Accepted" || Model.Status == "Preparing" || Model.Status == "Processing" ||
+        Model.Status == "Shipping" || Model.Status == "Arrived" || Model.Status == "Delivering" || Model.Status == "Completed")
+    { step2 = "active"; }
+
+    if (Model.Status == "Delivering" || Model.Status == "Completed")
+    { step3 = "active"; }
+
+    if (Model.Status == "Completed")
+    { step4 = "active"; }
+
+    string statusVN = Model.Status switch
+    {
+        "Pending" => "Chờ xác nhận",
+        "Preparing" => "Quán đang chuẩn bị món",
+        "Shipping" => "Tài xế đang đến quán",
+        "Arrived" => "Tài xế đang chờ lấy món",
+        "Delivering" => "Tài xế đang giao hàng",
+        "Completed" => "Đã giao thành công",
+        "Cancelled" => "Đã hủy",
+        _ => Model.Status
+    };
+}
+
+<style>
+    .stepper-wrapper {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        margin-bottom: 3rem;
+    }
+
+    .stepper-item {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        z-index: 2;
+    }
+
+        .stepper-item::before {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            top: 25px;
+            left: -50%;
+            z-index: -1;
+        }
+
+        .stepper-item:first-child::before {
+            display: none;
+        }
+
+    .step-counter {
+        width: 50px;
+        height: 50px;
+        background: #e0e0e0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        transition: 0.3s;
+    }
+
+    .stepper-item.active .step-counter {
+        background: #10b981;
+    }
+
+    .stepper-item.active .step-name {
+        color: #10b981;
+        font-weight: bold;
+    }
+
+    .stepper-item.active::before {
+        background: #10b981;
+    }
+
+    /* CSS Đánh giá sao */
+    input[name="drating"] {
+        display: none;
+    }
+
+        input[name="drating"]:checked ~ label {
+            color: #ffc107 !important;
+        }
+
+        input[name="drating"]:hover ~ label, label:hover {
+            color: #ffc107 !important;
+        }
+</style>
+
+<div class="container py-5">
+    <div class="card border-0 shadow-lg rounded-4 p-5 mx-auto" style="max-width: 900px;">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">Theo dõi đơn hàng</h2>
+            <span class="badge bg-light text-dark border p-2">Mã đơn: #@Model.OrderId</span>
+        </div>
+
+        <div class="stepper-wrapper">
+            <div class="stepper-item @step1"><div class="step-counter"><i class="bi bi-receipt"></i></div><div class="step-name mt-2">Đã đặt đơn</div></div>
+            <div class="stepper-item @step2"><div class="step-counter"><i class="bi bi-box-seam"></i></div><div class="step-name mt-2">Chuẩn bị món</div></div>
+            <div class="stepper-item @step3"><div class="step-counter"><i class="bi bi-bicycle"></i></div><div class="step-name mt-2">Đang giao</div></div>
+            <div class="stepper-item @step4"><div class="step-counter"><i class="bi bi-house-check"></i></div><div class="step-name mt-2">Thành công</div></div>
+        </div>
+
+        <div class="bg-light rounded-4 p-4 mt-4">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p class="mb-1 text-muted">Trạng thái hiện tại:</p>
+                    <h4 class="fw-bold text-success" id="liveStatusText">@statusVN</h4>
+                    <p class="small text-muted"><i class="bi bi-clock me-1"></i> Cập nhật mới nhất: @(Model.AcceptTime?.ToString("HH:mm dd/MM") ?? "Đang xử lý...")</p>
+                </div>
+                <div class="col-md-6 border-start ps-4">
+                    @if (Model.Driver != null)
+                    {
+                        <div class="d-flex align-items-center">
+                            <img src="@(Model.Driver.Avatar ?? "https://ui-avatars.com/api/?name=Shipper")" class="rounded-circle me-3" width="50" height="50">
+                            <div>
+                                <p class="mb-0 small text-muted">Tài xế giao hàng:</p>
+                                <h6 class="fw-bold mb-0">@Model.Driver.FullName</h6>
+                                <p class="mb-0 small">@Model.Driver.PhoneNumber</p>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted fst-italic"><i class="bi bi-info-circle me-1"></i> Đang tìm tài xế phù hợp...</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-5">
+            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary rounded-pill px-4">Tiếp tục mua sắm</a>
+            <a asp-controller="Account" asp-action="OrderHistory" class="btn btn-success rounded-pill px-4 ms-2">Xem lịch sử</a>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="driverReviewModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header bg-success text-white rounded-top-4">
+                <h5 class="modal-title fw-bold"><i class="bi bi-star-fill text-warning"></i> Đánh giá chuyến đi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <img src="@(Model.Driver?.Avatar ?? "https://ui-avatars.com/api/?name=Shipper")" class="rounded-circle mb-3 border border-3 border-success" width="80" height="80">
+                <h6 class="fw-bold mb-1">Tài xế: <span class="text-success fs-5">@(Model.Driver?.FullName ?? "Shipper")</span></h6>
+                <p class="text-muted small mb-4">Hãy chia sẻ trải nghiệm giao hàng của bạn nhé!</p>
+
+                <form id="driverReviewForm">
+                    <input type="hidden" id="reviewOrderId" value="@Model.OrderId" />
+                    <div class="star-rating mb-3" style="display: flex; flex-direction: row-reverse; justify-content: center; gap: 10px;">
+                        <input type="radio" id="dstar5" name="drating" value="5" /><label for="dstar5" style="font-size: 40px; color: #ccc; cursor: pointer;">★</label>
+                        <input type="radio" id="dstar4" name="drating" value="4" /><label for="dstar4" style="font-size: 40px; color: #ccc; cursor: pointer;">★</label>
+                        <input type="radio" id="dstar3" name="drating" value="3" /><label for="dstar3" style="font-size: 40px; color: #ccc; cursor: pointer;">★</label>
+                        <input type="radio" id="dstar2" name="drating" value="2" /><label for="dstar2" style="font-size: 40px; color: #ccc; cursor: pointer;">★</label>
+                        <input type="radio" id="dstar1" name="drating" value="1" /><label for="dstar1" style="font-size: 40px; color: #ccc; cursor: pointer;">★</label>
+                    </div>
+
+                    <textarea id="driverReviewText" class="form-control rounded-3 bg-light" rows="3" placeholder="Tài xế giao hàng thân thiện, nhiệt tình..."></textarea>
+                    <button type="button" id="btnSubmitDriverReview" class="btn btn-success fw-bold w-100 rounded-pill mt-4 py-2">GỬI ĐÁNH GIÁ</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            let orderId = @Model.OrderId;
+            let currentStatus = '@Model.Status';
+
+            if (currentStatus !== 'Completed' && currentStatus !== 'Cancelled') {
+                setInterval(function () {
+                    $.get('/Cart/CheckOrderStatus?orderId=' + orderId, function (res) {
+                        if (res.success && res.status !== currentStatus) {
+                            if (res.status === 'Completed') {
+                                // 🔥 KHI GIAO XONG -> BÁO AJAX "ĐƠN ĐÃ ĐẾN TAY BẠN" -> BẬT POPUP ĐÁNH GIÁ
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Đơn hàng đã đến tay bạn! 🎉',
+                                    text: 'Chúc bạn ngon miệng. Hãy dành chút thời gian đánh giá tài xế nhé!',
+                                    confirmButtonColor: '#198754',
+                                    confirmButtonText: 'Đánh giá ngay',
+                                    allowOutsideClick: false
+                                }).then((result) => {
+                                    if (result.isConfirmed) {
+                                        currentStatus = 'Completed';
+                                        $('#liveStatusText').text('Đã giao thành công');
+                                        $('.stepper-item:last-child').addClass('active');
+                                        $('#driverReviewModal').modal('show'); // Bật modal đánh giá tài xế
+                                    }
+                                });
+                            } else {
+                                location.reload(); // Các trạng thái khác tự reload
+                            }
+                        }
+                    });
+                }, 5000);
+            }
+
+            // Xử lý gửi đánh giá tài xế
+            $('#btnSubmitDriverReview').click(function() {
+                let rating = $('input[name="drating"]:checked').val();
+                if (!rating) {
+                    Swal.fire('Chú ý', 'Vui lòng chọn số sao!', 'warning'); return;
+                }
+
+                let btn = $(this);
+                btn.html('<span class="spinner-border spinner-border-sm"></span> Đang gửi...').prop('disabled', true);
+
+                $.post('/Cart/SubmitDriverReview', {
+                    orderId: $('#reviewOrderId').val(),
+                    rating: rating,
+                    review: $('#driverReviewText').val()
+                }, function(res) {
+                    if (res.success) {
+                        $('#driverReviewModal').modal('hide');
+                        Swal.fire('Cảm ơn bạn!', 'Đánh giá tài xế thành công.', 'success').then(() => window.location.href = '/Account/OrderHistory');
+                    }
+                });
+            });
+        });
+    </script>
+}

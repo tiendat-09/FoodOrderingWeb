@@ -1,0 +1,61 @@
+﻿@model List<FoodOrderingWeb.Models.User>
+@{
+    ViewData["Title"] = "Duyệt Tài Xế";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml"; // Bạn nhớ kiểm tra lại tên file Layout Admin của bạn nhé
+}
+
+<div class="container-fluid px-4 mt-4">
+    <h3 class="fw-bold mb-4">Danh sách Tài xế chờ duyệt</h3>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow border-0">
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Họ và Tên</th>
+                        <th>SĐT</th>
+                        <th>Số CCCD</th>
+                        <th>Biển Số Xe</th>
+                        <th>Ngày ĐK</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model == null || !Model.Any())
+                    {
+                        <tr><td colspan="6" class="text-center py-4 text-muted">Không có tài xế nào đang chờ duyệt.</td></tr>
+                    }
+                    else
+                    {
+                        foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="fw-bold text-primary">@item.FullName</td>
+                                <td>@item.PhoneNumber</td>
+                                <td>@item.CitizenId</td>
+                                <td><span class="badge bg-warning text-dark">@item.LicensePlate</span></td>
+                                <td>@(item.CreatedAt?.ToString("dd/MM/yyyy") ?? "N/A")</td>
+                                <td>
+                                    <form asp-action="ApproveDriver" asp-controller="Admin" method="post" class="d-inline">
+                                        <input type="hidden" name="userId" value="@item.UserId" />
+                                        <button type="submit" class="btn btn-sm btn-success fw-bold" onclick="return confirm('Bạn có chắc chắn muốn duyệt tài xế này?')">
+                                            <i class="bi bi-check-circle"></i> Duyệt ngay
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

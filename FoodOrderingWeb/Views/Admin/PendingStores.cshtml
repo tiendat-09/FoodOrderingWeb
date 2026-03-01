@@ -1,0 +1,50 @@
+﻿@model IEnumerable<FoodOrderingWeb.Models.Store>
+@{
+    ViewData["Title"] = "Duyệt quán đăng ký";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container py-5">
+    <h3 class="fw-bold text-primary mb-4">📋 DANH SÁCH QUÁN CHỜ DUYỆT</h3>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-success">Hiện không có quán nào đang chờ duyệt.</div>
+    }
+    else
+    {
+        <div class="table-responsive bg-white shadow-sm rounded-4 p-3">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên quán</th>
+                        <th>Địa chỉ</th>
+                        <th>Chủ quán (ID)</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="fw-bold text-success">@item.StoreName</td>
+                            <td>@item.Address</td>
+                            <td>@(item.OwnerId != null ? "User ID: " + item.OwnerId : "Chưa có chủ")</td>
+                            <td>
+                                <form asp-action="ApproveStore" method="post">
+                                    <input type="hidden" name="id" value="@item.StoreId" />
+                                    <button type="submit" class="btn btn-primary btn-sm rounded-pill fw-bold px-3">
+                                        <i class="bi bi-check-lg"></i> DUYỆT NGAY
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    <div class="mt-3">
+        <a asp-action="Index" class="btn btn-secondary">Quay lại Dashboard</a>
+    </div>
+</div>

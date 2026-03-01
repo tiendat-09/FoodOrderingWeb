@@ -1,0 +1,381 @@
+﻿@model List<FoodOrderingWeb.Models.Order>
+@{
+    ViewData["Title"] = "Trang chủ Shipper";
+    Layout = "~/Views/Shared/_DriverLayout.cshtml";
+}
+
+<style>
+    .stat-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        background: white;
+        padding: 25px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .icon-box {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+    }
+
+        .icon-box.orange {
+            background-color: #fff4ec;
+            color: #fd7e14;
+        }
+
+        .icon-box.green {
+            background-color: #e8f8f5;
+            color: #28a745;
+        }
+
+        .icon-box.blue {
+            background-color: #eef2ff;
+            color: #007bff;
+        }
+
+    .timeline-container {
+        position: relative;
+        padding-left: 25px;
+        border-left: 3px dashed #e0e0e0;
+        margin-left: 15px;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+    }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+
+    .timeline-icon {
+        position: absolute;
+        left: -44px;
+        top: -5px;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+</style>
+
+<h4 class="fw-bold mb-4">👋 Chào ngày mới, chúc bạn vững tay lái!</h4>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="icon-box green"><i class="bi bi-box-seam-fill"></i></div>
+            <div>
+                <div class="text-muted small fw-bold">ĐƠN ĐÃ GIAO (HÔM NAY)</div>
+                <h3 class="mb-0 fw-bold text-dark">@ViewBag.TodayOrders <span class="fs-6 text-muted">đơn</span></h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="icon-box orange"><i class="bi bi-cash-coin"></i></div>
+            <div>
+                <div class="text-muted small fw-bold">THU NHẬP (HÔM NAY)</div>
+                <h3 class="mb-0 fw-bold text-dark">@ViewBag.TodayIncome.ToString("N0") <span class="fs-6 text-muted">đ</span></h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="icon-box blue"><i class="bi bi-star-fill"></i></div>
+            <div>
+                <div class="text-muted small fw-bold">ĐÁNH GIÁ TRUNG BÌNH</div>
+                <h3 class="mb-0 fw-bold text-dark">@ViewBag.Rating <span class="fs-6 text-warning"><i class="bi bi-star-fill"></i></span></h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (ViewBag.ActiveOrder != null)
+{
+    var activeOrder = ViewBag.ActiveOrder;
+    string currentStatus = activeOrder.Status; // Trạng thái: Shipping, Arrived, Delivering
+
+    <div class="card border-0 shadow rounded-4 mt-4" style="border-top: 6px solid #fd7e14 !important;">
+        <div class="card-body p-4 p-md-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-bicycle text-warning me-2 fs-3"></i> ĐƠN HÀNG ĐANG THỰC HIỆN
+                </h4>
+
+                @if (currentStatus == "Shipping")
+                {
+                    <span class="badge bg-warning text-dark fs-6 px-4 py-2 rounded-pill shadow-sm">ĐANG ĐI ĐẾN QUÁN</span>
+                }
+                else if (currentStatus == "Arrived")
+                {
+                    <span class="badge bg-info text-dark fs-6 px-4 py-2 rounded-pill shadow-sm">CHỜ LẤY MÓN</span>
+                }
+                else
+                {
+                    <span class="badge bg-primary text-white fs-6 px-4 py-2 rounded-pill shadow-sm">🛵 ĐANG GIAO CHO KHÁCH</span>
+                }
+            </div>
+
+            <div class="row g-5">
+                <div class="col-lg-7">
+                    <div class="bg-light p-4 rounded-4 h-100">
+                        <div class="timeline-container">
+                            <div class="timeline-item">
+                                <div class="timeline-icon @(currentStatus == "Shipping" || currentStatus == "Arrived" ? "bg-warning" : "bg-secondary")"><i class="bi bi-shop"></i></div>
+                                <h6 class="fw-bold text-muted text-uppercase mb-1">Lấy hàng tại (Điểm A)</h6>
+                                <h5 class="fw-bold text-dark mb-1">@(activeOrder.Store?.StoreName ?? "Tên quán chưa rõ")</h5>
+                                <p class="text-muted mb-0"><i class="bi bi-geo-alt-fill me-1 text-danger"></i> @(activeOrder.Store?.Address ?? "Địa chỉ quán chưa rõ")</p>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-icon @(currentStatus == "Delivering" ? "bg-success" : "bg-secondary")"><i class="bi bi-person-fill"></i></div>
+                                <h6 class="fw-bold text-muted text-uppercase mb-1">Giao đến (Điểm B)</h6>
+                                <h5 class="fw-bold text-dark mb-1">@activeOrder.ReceiverName</h5>
+                                <p class="text-muted mb-1"><i class="bi bi-telephone-fill me-1 text-primary"></i> @activeOrder.ReceiverPhone</p>
+                                <p class="text-dark fw-bold mb-0"><i class="bi bi-house-door-fill me-1 text-success"></i> @activeOrder.Address</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-5">
+                    <div class="border rounded-4 p-4 mb-4">
+                        <h6 class="fw-bold mb-3 border-bottom pb-2">Chi tiết món ăn cần lấy:</h6>
+
+                        <ul class="list-unstyled mb-0">
+                            @if (activeOrder.OrderDetails != null)
+                            {
+                                foreach (var detail in activeOrder.OrderDetails)
+                                {
+                                    <li class="mb-3 border-bottom pb-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="fw-bold fs-6">
+                                                @detail.Quantity <span class="text-muted fw-normal">x</span> @(detail.Food?.FoodName ?? "Món ăn")
+                                            </span>
+                                        </div>
+
+                                        @if (!string.IsNullOrEmpty(detail.Note))
+                                        {
+                                            <div class="text-danger small mt-1" style="font-style: italic;">
+                                                <i class="bi bi-exclamation-circle me-1"></i> Ghi chú: @detail.Note
+                                            </div>
+                                        }
+                                    </li>
+                                }
+                            }
+                        </ul>
+                    </div>
+
+                    <div class="bg-dark text-white rounded-4 p-4 shadow">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-light">Phương thức:</span>
+                            <span class="badge bg-warning text-dark fw-bold">@activeOrder.PaymentMethod</span>
+                        </div>
+
+                        @if (activeOrder.PaymentMethod == "COD")
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom border-secondary">
+                                <span class="text-light fw-bold fs-5">Thu khách (Tiền mặt):</span>
+                                <span class="text-warning fw-bold fs-3">@activeOrder.TotalAmount.ToString("N0")đ</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom border-secondary">
+                                <span class="text-light fw-bold fs-5">Tài xế thu khách:</span>
+                                <span class="text-success fw-bold fs-3">0đ (Đã thanh toán)</span>
+                            </div>
+                        }
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-light">Thù lao chuyến đi:</span>
+                            <span class="text-white fw-bold fs-5">+@activeOrder.ShippingFee.ToString("N0")đ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4 pt-4 border-top">
+                @if (currentStatus == "Shipping")
+                {
+                    <button class="btn btn-warning px-5 py-3 fw-bold rounded-pill text-dark shadow fs-5 w-100 mb-2" onclick="updateOrderStatus(@activeOrder.OrderId, 'Arrived')">
+                        <i class="bi bi-geo-alt-fill me-2"></i> TÔI ĐÃ ĐẾN QUÁN
+                    </button>
+                    <p class="text-muted small">Hãy bấm nút này khi bạn đã có mặt tại quán để chờ lấy món.</p>
+                }
+                else if (currentStatus == "Arrived")
+                {
+                    <button class="btn btn-primary px-5 py-3 fw-bold rounded-pill text-white shadow fs-5 w-100 mb-2" onclick="updateOrderStatus(@activeOrder.OrderId, 'Delivering')">
+                        <i class="bi bi-box-seam me-2"></i> ĐÃ LẤY MÓN XONG - ĐI GIAO
+                    </button>
+                    <p class="text-muted small">Chỉ bấm nút này khi quán đã chuẩn bị xong và giao đủ đồ ăn cho bạn.</p>
+                }
+                else if (currentStatus == "Delivering")
+                {
+                    <button class="btn btn-success px-5 py-3 fw-bold rounded-pill text-white shadow fs-5 w-100 mb-2" onclick="updateOrderStatus(@activeOrder.OrderId, 'Completed')">
+                        <i class="bi bi-check-circle-fill me-2"></i> ĐÃ GIAO HÀNG THÀNH CÔNG
+                    </button>
+                    @if (activeOrder.PaymentMethod == "COD")
+                    {
+                        <p class="text-muted small">Hãy chắc chắn bạn đã thu đủ <strong class="text-danger">@activeOrder.TotalAmount.ToString("N0")đ</strong> tiền mặt từ khách.</p>
+                    }
+                    else
+                    {
+                        <p class="text-muted small">Đơn hàng đã được thanh toán trước. Hãy giao đồ ăn với một nụ cười nhé!</p>
+                    }
+                }
+            </div>
+
+        </div>
+    </div>
+}
+else
+{
+    <div class="card border-0 shadow-sm rounded-4 mt-4">
+        <div class="card-header bg-white border-0 p-4 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0"><i class="bi bi-broadcast me-2 text-primary"></i> Đơn hàng quanh bạn đang chờ nhận</h5>
+            <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise"></i> Làm mới
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Mã Đơn</th>
+                            <th>Thời gian đặt</th>
+                            <th>Lấy món tại (Quán)</th>
+                            <th>Thông tin giao hàng</th>
+                            <th>Tổng tiền / Phí ship</th>
+                            <th class="text-end">Hành động</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr class="align-middle">
+                                <td class="fw-bold text-primary">#ORD-@item.OrderId</td>
+                                <td class="text-muted small"><i class="bi bi-clock"></i> @item.OrderDate?.ToString("HH:mm dd/MM")</td>
+
+                                <td>
+                                    <div class="fw-bold text-dark"><i class="bi bi-shop text-warning"></i> @(item.Store?.StoreName ?? "N/A")</div>
+                                    <div class="small text-muted text-truncate" style="max-width: 200px;" title="@item.Store?.Address">
+                                        <i class="bi bi-geo-alt"></i> @item.Store?.Address
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="fw-bold">Giao đến: @item.ReceiverName</div>
+                                    <div class="small text-danger"><i class="bi bi-geo-alt-fill"></i> @item.Address</div>
+                                </td>
+                                <td>
+                                    <div class="fw-bold">@item.TotalAmount.ToString("N0") đ</div>
+                                    <span class="badge bg-success">+ Ship: @item.ShippingFee.ToString("N0") đ</span>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-warning fw-bold rounded-pill px-4 btn-accept" onclick="acceptOrder(@item.OrderId)">Nhận Đơn</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function acceptOrder(orderId) {
+            Swal.fire({
+                title: 'Nhận đơn hàng này?',
+                text: "Bạn cần di chuyển đến quán để lấy hàng ngay!",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#fd7e14',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Đồng ý nhận'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('/Driver/AcceptOrder', { orderId: orderId }, function (res) {
+                        if (res.success) {
+                            Swal.fire({
+                                title: 'Thành công!',
+                                text: res.message,
+                                icon: 'success',
+                                confirmButtonColor: '#fd7e14'
+                            }).then(() => location.reload());
+                        } else {
+                            Swal.fire('Rất tiếc', res.message, 'warning').then(() => location.reload());
+                        }
+                    });
+                }
+            });
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            let titleText = "";
+            let btnColor = "";
+
+            if (newStatus === 'Arrived') {
+                titleText = 'Xác nhận bạn đã đến quán?';
+                btnColor = '#ffc107';
+            } else if (newStatus === 'Delivering') {
+                titleText = 'Xác nhận bạn đã lấy đủ món?';
+                btnColor = '#0d6efd';
+            } else {
+                titleText = 'Xác nhận giao thành công?';
+                btnColor = '#28a745';
+            }
+
+            Swal.fire({
+                title: titleText,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: btnColor,
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Xác nhận',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Đang xử lý...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+                    $.ajax({
+                        url: '/Driver/UpdateOrderStatus',
+                        type: 'POST',
+                        data: { orderId: orderId, newStatus: newStatus },
+                        success: function(res) {
+                            if (res.success) {
+                                let successMsg = newStatus === 'Arrived' ? 'Hệ thống đã ghi nhận bạn đến quán.' :
+                                                 newStatus === 'Delivering' ? 'Hãy cẩn thận di chuyển đến nhà khách nhé!' :
+                                                 'Tuyệt vời! Tiền ship đã được cộng vào ví của bạn.';
+
+                                Swal.fire('Thành công!', successMsg, 'success').then(() => location.reload());
+                            } else {
+                                Swal.fire('Lỗi', res.message, 'error');
+                            }
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+}

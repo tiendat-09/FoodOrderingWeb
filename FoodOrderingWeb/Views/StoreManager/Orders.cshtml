@@ -1,0 +1,218 @@
+﻿@model List<FoodOrderingWeb.Models.Order>
+@{
+    ViewData["Title"] = "Quản lý Đơn hàng";
+    Layout = "~/Views/Shared/_StoreLayout.cshtml";
+}
+
+<h1 class="page-title">📦 Tất cả đơn hàng</h1>
+<p class="page-subtitle">Quản lý chi tiết lịch sử giao dịch của quán</p>
+
+<div class="card-custom">
+    <div class="table-responsive">
+        <table class="table table-custom table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Mã đơn</th>
+                    <th>Khách hàng</th>
+                    <th style="width: 25%">Chi tiết món</th>
+                    <th>Tài xế (Shipper)</th>
+                    <th>Tổng thu</th>
+                    <th>Hành động & Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Count > 0)
+                {
+                    foreach (var item in Model)
+                    {
+                        var s = (item.Status ?? "").ToLower();
+                        <tr>
+                            <td class="fw-bold text-secondary">
+                                #@item.OrderId<br />
+                                <small class="text-muted fw-normal">@(item.OrderDate?.ToString("HH:mm dd/MM"))</small>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark">@item.ReceiverName</div>
+                                <small class="text-muted"><i class="bi bi-telephone text-primary"></i> @item.ReceiverPhone</small>
+                            </td>
+
+                            <td>
+                                @if (item.OrderDetails != null && item.OrderDetails.Any())
+                                {
+                                    <ul class="list-unstyled mb-0 small">
+                                        @foreach (var detail in item.OrderDetails)
+                                        {
+                                            <li class="mb-1">
+                                                <span class="fw-bold text-dark">@detail.Quantity x</span>
+                                                @(detail.Food?.FoodName ?? "Món ăn đã xóa")
+                                                @if (!string.IsNullOrEmpty(detail.Note))
+                                                {
+                                                    <br />
+                                                    <span class="text-danger" style="font-style: italic; font-size: 0.8em;">(Ghi chú: @detail.Note)</span>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </td>
+
+                            <td>
+                                @if (item.DriverId != null && item.Driver != null)
+                                {
+                                    <div class="fw-bold text-primary"><i class="bi bi-bicycle"></i> @item.Driver.FullName</div>
+                                    <small class="text-muted"><i class="bi bi-telephone"></i> @item.Driver.PhoneNumber</small>
+                                }
+                                else if (s == "cancelled" || s.Contains("từ chối"))
+                                {
+                                    <span class="text-danger small fw-bold"><i class="bi bi-x-circle"></i> Đơn đã hủy</span>
+                                }
+                                else if (s == "pending" || s == "chờ xử lý")
+                                {
+                                    <span class="text-warning small fw-bold"><i class="bi bi-hourglass-split"></i> Chờ bạn duyệt</span>
+                                }
+                                else
+                                {
+                                    <span class="text-info small fw-bold">
+                                        <span class="spinner-grow spinner-grow-sm"></span> Đang gọi Shipper...
+                                    </span>
+                                }
+                            </td>
+
+                            <td class="fw-bold text-warning fs-6">@item.TotalAmount.ToString("N0")đ</td>
+
+                            <td>
+                                @if (s == "pending" || s == "chờ xử lý")
+                                {
+                                    <div class="d-flex gap-1" id="action-btns-@item.OrderId">
+                                        <button type="button" class="btn btn-success btn-sm p-1 px-2 shadow-sm" onclick="acceptOrderAjax(@item.OrderId)" title="Nhận đơn" style="font-size: 1.1rem;">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-danger btn-sm p-1 px-2 shadow-sm" onclick="confirmRejectAjax(@item.OrderId)" title="Từ chối" style="font-size: 1.1rem;">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                }
+                                else if (s.Contains("đã từ chối") || s == "cancelled")
+                                {
+                                    <span class="badge bg-danger rounded-pill px-3">Đã hủy</span>
+                                }
+                                else if (s == "preparing")
+                                {
+                                    <span class="badge bg-info text-dark rounded-pill px-3">Đang làm món</span>
+                                }
+                                else if (s == "shipping" || s == "delivering")
+                                {
+                                    <span class="badge bg-primary rounded-pill px-3">Shipper đang giao</span>
+                                }
+                                else if (s == "completed")
+                                {
+                                    <span class="badge bg-success rounded-pill px-3">Hoàn thành</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-dark rounded-pill px-3">@item.Status</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">Quán chưa có đơn hàng nào.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function acceptOrderAjax(orderId) {
+            Swal.fire({
+                title: 'Đang xử lý...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading() }
+            });
+
+            $.ajax({
+                url: '/StoreManager/AcceptOrder',
+                type: 'POST',
+                data: { orderId: orderId },
+                success: function (res) {
+                    if (res.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Thành công!',
+                            text: res.message,
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('Lỗi', res.message, 'error');
+                    }
+                },
+                error: function () {
+                    Swal.fire('Lỗi', 'Không thể kết nối với máy chủ!', 'error');
+                }
+            });
+        }
+
+        function confirmRejectAjax(orderId) {
+            Swal.fire({
+                title: 'Từ chối đơn hàng?',
+                text: "Vui lòng nhập lý do từ chối (Ví dụ: Hết món, quán đóng cửa...):",
+                input: 'text',
+                inputAttributes: { required: true, placeholder: 'Nhập lý do...' },
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Xác nhận hủy',
+                cancelButtonText: 'Đóng'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    if (result.value.trim() === "") {
+                        Swal.fire('Lỗi', 'Vui lòng nhập lý do từ chối!', 'error');
+                        return;
+                    }
+
+                    Swal.fire({
+                        title: 'Đang xử lý...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading() }
+                    });
+
+                    $.ajax({
+                        url: '/StoreManager/RejectOrder',
+                        type: 'POST',
+                        data: { orderId: orderId, cancelReason: result.value },
+                        success: function (res) {
+                            if (res.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Đã hủy đơn!',
+                                    text: res.message,
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                }).then(() => {
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire('Lỗi', res.message, 'error');
+                            }
+                        },
+                        error: function () {
+                            Swal.fire('Lỗi', 'Không thể kết nối với máy chủ!', 'error');
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+}

@@ -1,0 +1,73 @@
+﻿@model FoodOrderingWeb.Models.User
+@{
+    ViewData["Title"] = "Tạo tài khoản Chủ quán";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var stores = ViewBag.Stores as List<FoodOrderingWeb.Models.Store>;
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="card-header bg-success text-white text-center py-3">
+                    <h5 class="mb-0 fw-bold">TẠO TÀI KHOẢN CHỦ QUÁN</h5>
+                </div>
+                <div class="card-body p-4">
+
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger">@ViewBag.Error</div>
+                    }
+
+                    <form asp-action="CreateStoreAccount" method="post">
+
+                        <div class="mb-3">
+                            <label class="fw-bold mb-1">Chọn Cửa Hàng Quản Lý</label>
+                            <select name="StoreId" class="form-select" required>
+                                <option value="">-- Chọn quán ăn --</option>
+                                @if (stores != null)
+                                {
+                                    foreach (var s in stores)
+                                    {
+                                        <option value="@s.StoreId">@s.StoreName (ID: @s.StoreId)</option>
+                                    }
+                                }
+                            </select>
+                            <div class="form-text text-muted">Tài khoản này sẽ quản lý quán được chọn.</div>
+                        </div>
+
+                        <hr />
+
+                        <div class="mb-3">
+                            <label class="fw-bold mb-1">Họ và Tên</label>
+                            <input asp-for="FullName" class="form-control" required placeholder="Ví dụ: Nguyễn Văn Chủ Quán" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="fw-bold mb-1">Email đăng nhập</label>
+                            <input asp-for="Email" type="email" class="form-control" required placeholder="store@gmail.com" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="fw-bold mb-1">Mật khẩu</label>
+                            <input name="Password" type="text" class="form-control" value="123456" required />
+                            <div class="form-text">Mặc định là 123456 (Có thể sửa)</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="fw-bold mb-1">Số điện thoại</label>
+                            <input asp-for="PhoneNumber" class="form-control" required />
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-success fw-bold py-2">
+                                <i class="bi bi-person-plus-fill me-2"></i> TẠO & PHÂN QUYỀN
+                            </button>
+                            <a asp-action="Users" class="btn btn-light border">Quay lại</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

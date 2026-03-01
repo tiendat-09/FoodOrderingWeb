@@ -1,0 +1,268 @@
+﻿@model List<FoodOrderingWeb.Models.Order>
+@{
+    ViewData["Title"] = "Tổng quan hệ thống";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+<style>
+    .stat-card {
+        border-radius: 20px;
+        border: none;
+        transition: 0.3s;
+        overflow: hidden;
+        position: relative;
+        height: 160px;
+        cursor: pointer;
+        color: white;
+    }
+
+        .stat-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+
+    .bg-grad-1 {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .bg-grad-2 {
+        background: linear-gradient(135deg, #2af598 0%, #009efd 100%);
+    }
+
+    .bg-grad-3 {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .bg-grad-4 {
+        background: linear-gradient(135deg, #feb47b 0%, #ff7e5f 100%);
+    }
+
+    .stat-icon {
+        position: absolute;
+        right: -10px;
+        bottom: -10px;
+        font-size: 6rem;
+        opacity: 0.2;
+        transform: rotate(-15deg);
+    }
+</style>
+
+<div class="container-fluid p-0">
+    <h3 class="fw-bold mb-4 text-dark">Quản trị hệ thống</h3>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card stat-card bg-grad-1" onclick="location.reload()">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold opacity-75">TỔNG ĐƠN HÀNG</h6>
+                    <h2 class="fw-bold mb-0">@ViewBag.TotalOrders</h2>
+                    <i class="bi bi-cart-check stat-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-grad-2">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold opacity-75">DOANH THU LŨY KẾ</h6>
+                    <h2 class="fw-bold mb-0">@ViewBag.TotalRevenue.ToString("N0")đ</h2>
+                    <i class="bi bi-cash-coin stat-icon"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3" data-bs-toggle="modal" data-bs-target="#pendingStoresModal">
+            <div class="card stat-card bg-grad-3">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold opacity-75">QUÁN CHỜ DUYỆT</h6>
+                    <h2 class="fw-bold mb-0">@ViewBag.PendingStoresCount</h2>
+                    <p class="small mb-0 mt-2"><i class="bi bi-window-stack"></i> Bấm để xem danh sách</p>
+                    <i class="bi bi-shop stat-icon"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3" data-bs-toggle="modal" data-bs-target="#pendingDriversModal">
+            <div class="card stat-card bg-grad-4">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold opacity-75">TÀI XẾ CHỜ DUYỆT</h6>
+                    <h2 class="fw-bold mb-0">@ViewBag.PendingDriverCount</h2>
+                    <p class="small mb-0 mt-2"><i class="bi bi-window-stack"></i> Bấm để xem danh sách</p>
+                    <i class="bi bi-person-badge stat-icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-4">Hoạt động gần đây</h5>
+            <table class="table align-middle">
+                <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Thanh toán</th><th>Trạng thái</th></tr></thead>
+                <tbody>
+                    @if (Model != null)
+                    {
+                        foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="fw-bold text-primary">#@item.OrderId</td>
+                                <td>@item.ReceiverName</td>
+                                <td class="fw-bold text-danger">@item.TotalAmount.ToString("N0")đ</td>
+                                <td>
+                                    @{
+                                        string s = (item.Status ?? "").ToLower();
+                                        string statusVN = s == "completed" ? "Thành công" : (s == "cancelled" ? "Đã hủy" : "Đang xử lý");
+                                        string bClass = s == "completed" ? "bg-success-subtle text-success" : (s == "cancelled" ? "bg-danger-subtle text-danger" : "bg-warning-subtle text-dark");
+                                    }
+                                    <span class="badge @bClass rounded-pill px-3 py-2">@statusVN</span>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="pendingStoresModal" data-bs-focus="false">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 bg-light rounded-top-4">
+                <h5 class="modal-title fw-bold text-danger"><i class="bi bi-shop me-2"></i>Xét duyệt Quán ăn</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Tên quán</th><th>Chủ quán</th><th>Địa chỉ</th><th class="text-center">Thao tác</th></tr>
+                        </thead>
+                        <tbody>
+                            @if (ViewBag.PendingStoresList != null && ((IEnumerable<dynamic>)ViewBag.PendingStoresList).Any())
+                            {
+                                foreach (var store in ViewBag.PendingStoresList)
+                                {
+                                    <tr>
+                                        <td class="fw-bold text-primary">@store.StoreName</td>
+                                        <td>@store.Owner?.FullName</td>
+                                        <td>@store.Address</td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-success rounded-pill px-3 me-1" onclick="approveStore(@store.StoreId)"><i class="bi bi-check-lg"></i> Duyệt</button>
+                                            <button class="btn btn-sm btn-danger rounded-pill px-3" onclick="rejectStore(@store.StoreId)"><i class="bi bi-x-lg"></i> Từ chối</button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr><td colspan="4" class="text-center text-muted py-3">Không có quán nào đang chờ duyệt.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="pendingDriversModal" data-bs-focus="false">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 bg-light rounded-top-4">
+                <h5 class="modal-title fw-bold text-warning"><i class="bi bi-bicycle me-2"></i>Xét duyệt Tài xế</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Họ tên</th><th>Email</th><th>SĐT</th><th class="text-center">Thao tác</th></tr>
+                        </thead>
+                        <tbody>
+                            @if (ViewBag.PendingDriversList != null && ((IEnumerable<dynamic>)ViewBag.PendingDriversList).Any())
+                            {
+                                foreach (var driver in ViewBag.PendingDriversList)
+                                {
+                                    <tr>
+                                        <td class="fw-bold">@driver.FullName</td>
+                                        <td>@driver.Email</td>
+                                        <td>@driver.PhoneNumber</td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-success rounded-pill px-3 me-1" onclick="approveDriver(@driver.UserId)"><i class="bi bi-check-lg"></i> Duyệt</button>
+                                            <button class="btn btn-sm btn-danger rounded-pill px-3" onclick="rejectDriver(@driver.UserId)"><i class="bi bi-x-lg"></i> Từ chối</button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr><td colspan="4" class="text-center text-muted py-3">Không có tài xế nào đang chờ duyệt.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // ============================
+        // XỬ LÝ QUÁN ĂN
+        // ============================
+        function approveStore(id) {
+            $.post('/Admin/ApproveStore', { id: id }, function(res) {
+                if(res.success) Swal.fire('Thành công', 'Đã duyệt quán!', 'success').then(()=>location.reload());
+            });
+        }
+
+        function rejectStore(id) {
+            Swal.fire({
+                title: 'Lý do từ chối Quán ăn?',
+                input: 'text',
+                inputPlaceholder: 'Ví dụ: Menu không hợp lệ, địa chỉ sai...',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Từ chối',
+                cancelButtonText: 'Hủy'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    $.post('/Admin/RejectStore', { id: id, reason: result.value }, function(r) {
+                        if (r.success) Swal.fire('Đã từ chối!', r.message, 'success').then(() => location.reload());
+                    });
+                }
+            });
+        }
+
+        // ============================
+        // XỬ LÝ TÀI XẾ
+        // ============================
+        function approveDriver(id) {
+            $.post('/Admin/ApproveDriver', { id: id }, function (res) {
+                if (res.success) Swal.fire('Thành công', res.message, 'success').then(() => location.reload());
+            });
+        }
+
+        function rejectDriver(id) {
+            Swal.fire({
+                title: 'Lý do từ chối Tài xế?',
+                input: 'text',
+                inputPlaceholder: 'Ví dụ: Ảnh CMND bị mờ, biển số xe sai...',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Từ chối',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('/Admin/RejectDriver', { id: id, reason: result.value }, function (r) {
+                        if (r.success) Swal.fire('Đã từ chối!', r.message, 'success').then(() => location.reload());
+                    });
+                }
+            });
+        }
+    </script>
+}

@@ -1,0 +1,181 @@
+﻿@model FoodOrderingWeb.Models.Food
+
+@{
+    ViewData["Title"] = "Chỉnh sửa món ăn";
+    var categories = ViewBag.Categories as List<FoodOrderingWeb.Models.Category>;
+    var stores = ViewBag.Stores as List<FoodOrderingWeb.Models.Store>;
+}
+
+<style>
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        padding: 30px;
+        margin-bottom: 24px;
+        border: 1px solid #eef2f6;
+    }
+
+    .form-label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #364152;
+        margin-bottom: 8px;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 10px 15px;
+        border: 1px solid #d1d9e0;
+    }
+
+    .image-upload-box {
+        border: 2px dashed #697586;
+        border-radius: 12px;
+        background-color: #f8f9fa;
+        height: 250px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .btn-save {
+        background-color: #5c6ac4;
+        color: white;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        border: none;
+    }
+
+    .current-img {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+    }
+</style>
+
+<div class="container py-4" style="background-color: #f8f9fa; min-height: 100vh;">
+    <div class="mb-4">
+        <h3 class="fw-bold text-dark">Chỉnh sửa món ăn</h3>
+    </div>
+
+    <form asp-action="EditFood" method="post" enctype="multipart/form-data">
+        <input type="hidden" asp-for="FoodId" />
+        <input type="hidden" asp-for="ImageUrl" />
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="form-card">
+                    <h5 class="fw-bold mb-4">Thông tin cơ bản</h5>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tên món ăn</label>
+                        <input asp-for="FoodName" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Mô tả</label>
+                        <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Danh mục</label>
+                            <select asp-for="CategoryId" class="form-select">
+                                @if (categories != null)
+                                {
+                                    @foreach (var c in categories)
+                                    {
+                                        <option value="@c.CategoryId">@c.CategoryName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Cửa hàng</label>
+                            <select asp-for="StoreId" class="form-select">
+                                @if (stores != null)
+                                {
+                                    @foreach (var s in stores)
+                                    {
+                                        <option value="@s.StoreId">@s.StoreName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-card">
+                    <h5 class="fw-bold mb-4">Giá & Sẵn có</h5>
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <label class="form-label">Giá bán (VNĐ)</label>
+                            <input asp-for="Price" type="number" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-4">
+                                <input class="form-check-input" type="checkbox" role="switch" id="activeSwitch" name="IsActive" value="true" @(Model.IsActive == true ? "checked" : "")>
+                                <input type="hidden" name="IsActive" value="false" />
+                                <label class="form-check-label fw-bold ms-2" for="activeSwitch">Đang mở bán</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="form-card">
+                    <h5 class="fw-bold mb-4">Hình ảnh món ăn</h5>
+
+                    <label for="fileInput" class="image-upload-box mb-3">
+                        @if (!string.IsNullOrEmpty(Model.ImageUrl))
+                        {
+                            <img id="imagePreview" src="~/images/@Model.ImageUrl" class="current-img" />
+                        }
+                        else
+                        {
+                            <div class="text-center text-muted" id="placeholderText">
+                                <i class="bi bi-cloud-upload fs-1"></i>
+                                <p class="small mt-2">Nhấn để thay ảnh mới</p>
+                            </div>
+                            <img id="imagePreview" src="#" class="current-img d-none" />
+                        }
+                    </label>
+                    <input type="file" name="imageFile" id="fileInput" class="d-none" accept="image/*" onchange="previewImage(this)" />
+
+                    <div class="text-muted small text-center">
+                        Hỗ trợ: JPG, PNG, GIF. Tối đa 5MB.
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-save btn-lg">Lưu thay đổi</button>
+                    <a asp-action="Foods" class="btn btn-light border">Hủy bỏ</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    function previewImage(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var preview = document.getElementById('imagePreview');
+                preview.src = e.target.result;
+                preview.classList.remove('d-none');
+
+                // Ẩn icon upload cũ nếu có
+                var placeholder = document.getElementById('placeholderText');
+                if(placeholder) placeholder.style.display = 'none';
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>

@@ -321,26 +321,26 @@ namespace FoodOrderingWeb.Controllers
                     ShippingFee = shippingFee,
                     TotalAmount = finalTotalAmount,
                     OrderDate = DateTime.Now,
+                    Status = "Pending",
 
-                    // 🔥 ĐÃ SỬA TẠI ĐÂY: Đổi từ "Pending" thành "Preparing" để tài xế thấy được luôn
-                    Status = "Pending"
+                    // ✅ TẠO DANH SÁCH CHI TIẾT ĐƠN HÀNG NGAY TỪ ĐẦU (Khắc phục triệt để lỗi Khóa ngoại)
+                    OrderDetails = new List<OrderDetail>()
                 };
-
-                _context.Orders.Add(newOrder);
-                await _context.SaveChangesAsync();
 
                 foreach (var item in cart)
                 {
-                    var orderDetail = new OrderDetail
+                    newOrder.OrderDetails.Add(new OrderDetail
                     {
-                        OrderId = newOrder.OrderId,
+                        // Không cần gán OrderId vì EF Core sẽ tự động liên kết khi lưu chung
                         FoodId = item.FoodId,
                         Quantity = item.Quantity,
-                        Price = (decimal)item.Price, // 🔥 ĐÃ FIX
+                        Price = (decimal)item.Price,
                         Note = item.Note
-                    };
-                    _context.OrderDetails.Add(orderDetail);
+                    });
                 }
+
+                // ✅ CHỈ CẦN LƯU 1 LẦN DUY NHẤT LÀ XONG CẢ BẢNG CHA VÀ BẢNG CON
+                _context.Orders.Add(newOrder);
                 await _context.SaveChangesAsync();
 
                 // Đặt hàng xong thì xóa giỏ hàng
@@ -350,7 +350,9 @@ namespace FoodOrderingWeb.Controllers
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = "Lỗi khi xử lý đơn hàng: " + ex.Message });
+                // Lấy lỗi chi tiết sâu nhất từ Database
+                string realError = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                return Json(new { success = false, message = "Lỗi gốc từ CSDL: " + realError });
             }
         }
 
@@ -411,7 +413,9 @@ namespace FoodOrderingWeb.Controllers
             return Json(new
             {
                 success = true,
-                status = order.Status
+                status = order.Status,
+                cancelReason = order.CancelReason, // 🔥 Lấy lý do hủy từ CSDL
+                totalAmount = order.TotalAmount    // 🔥 Lấy tổng tiền để báo hoàn tiền
             });
         }
         // 🔥 API ĐỂ TẠO THANH BANNER CHẠY TRỰC TIẾP TRÊN ĐẦU TRANG WEB

@@ -172,6 +172,64 @@
     .dish-info {
         padding: 15px;
     }
+
+    /* --- CSS CHO TÍNH NĂNG HẾT MÓN --- */
+    .dish-card.inactive {
+        opacity: 0.65;
+        filter: grayscale(80%);
+    }
+
+    /* Toggle Switch (Nút gạt) */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+    }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 24px;
+    }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+    input:checked + .slider {
+        background-color: #28a745;
+    }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+    .status-text {
+        font-size: 0.85rem;
+        font-weight: bold;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -187,13 +245,24 @@
 <div class="menu-grid">
     @foreach (var food in Model)
     {
-        <div class="dish-card">
+        <div class="dish-card @(food.IsActive ? "" : "inactive")" id="dish-card-@food.FoodId">
             <img src="@(string.IsNullOrEmpty(food.ImageUrl) ? "/images/default_food.jpg" : food.ImageUrl)" class="dish-img" onerror="this.src='/images/default_food.jpg'" />
 
             <div class="dish-info">
                 <h6 class="fw-bold mb-1 text-truncate" title="@food.FoodName">@food.FoodName</h6>
                 <div class="fw-bold text-primary mb-2">@food.Price.ToString("N0")đ</div>
-                <p class="text-muted small mb-3 text-truncate" style="min-height: 20px;">@(string.IsNullOrEmpty(food.Description) ? "Chưa có mô tả" : food.Description)</p>
+                <p class="text-muted small mb-2 text-truncate" style="min-height: 20px;">@(string.IsNullOrEmpty(food.Description) ? "Chưa có mô tả" : food.Description)</p>
+
+                <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded">
+                    <span class="status-text @(food.IsActive ? "text-success" : "text-danger")" id="status-text-@food.FoodId">
+                        <i class="bi @(food.IsActive ? "bi-check-circle-fill" : "bi-x-circle-fill") me-1"></i>
+                        @(food.IsActive ? "Đang bán" : "Hết món")
+                    </span>
+                    <label class="switch mb-0">
+                        <input type="checkbox" @(food.IsActive ? "checked" : "") onchange="toggleFoodStatus(@food.FoodId, this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
 
                 <div class="d-flex gap-2">
                     <button class="btn btn-sm btn-outline-primary flex-grow-1 fw-bold"
@@ -446,6 +515,37 @@
                     })
                     .catch(error => { Swal.fire('Lỗi', 'Lỗi khi xóa món!', 'error'); });
                 }
+            });
+        }
+
+        // 7. CẬP NHẬT TÌNH TRẠNG HẾT MÓN/CÒN MÓN BẰNG NÚT GẠT (AJAX)
+        function toggleFoodStatus(id, isActive) {
+            fetch('/StoreManager/ToggleFoodStatus', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `id=${id}&isActive=${isActive}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const card = document.getElementById(`dish-card-${id}`);
+                    const text = document.getElementById(`status-text-${id}`);
+
+                    if (isActive) {
+                        card.classList.remove('inactive');
+                        text.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Đang bán';
+                        text.className = 'status-text text-success';
+                    } else {
+                        card.classList.add('inactive');
+                        text.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Hết món';
+                        text.className = 'status-text text-danger';
+                    }
+                } else {
+                    Swal.fire('Lỗi', data.message, 'error').then(() => location.reload()); // Trả lại công tắc nếu lỗi
+                }
+            })
+            .catch(error => {
+                Swal.fire('Lỗi', 'Lỗi kết nối server!', 'error').then(() => location.reload());
             });
         }
     </script>

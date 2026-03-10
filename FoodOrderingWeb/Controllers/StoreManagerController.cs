@@ -203,6 +203,8 @@ namespace FoodOrderingWeb.Controllers
                 }
 
                 food.StoreId = storeId.Value;
+                // Mặc định món mới thêm vào sẽ hiển thị luôn (Còn món)
+                food.IsActive = true;
 
                 _context.Foods.Add(food);
                 await _context.SaveChangesAsync();
@@ -294,6 +296,28 @@ namespace FoodOrderingWeb.Controllers
             }
         }
 
+        // 🔥 HÀM MỚI: API CẬP NHẬT TRẠNG THÁI HẾT MÓN/CÒN MÓN TỪ NÚT GẠT
+        [HttpPost]
+        public IActionResult ToggleFoodStatus(int id, bool isActive)
+        {
+            try
+            {
+                int? storeId = GetCurrentStoreId();
+                var food = _context.Foods.FirstOrDefault(f => f.FoodId == id && f.StoreId == storeId);
+
+                if (food == null) return Json(new { success = false, message = "Không tìm thấy món ăn hoặc bạn không có quyền!" });
+
+                food.IsActive = isActive;
+                _context.SaveChanges();
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+            }
+        }
+
         [HttpGet]
         public IActionResult Reviews()
         {
@@ -338,12 +362,35 @@ namespace FoodOrderingWeb.Controllers
             if (order != null && order.Status == "Pending")
             {
                 order.Status = "Cancelled";
-                // 🔥 Đã bỏ comment dòng dưới đây vì database đã có cột CancelReason
-                order.CancelReason = cancelReason;
+                // 🔥 ĐÃ CẬP NHẬT: Gắn prefix "Quán hủy" để phân biệt với User hủy
+                order.CancelReason = "Quán hủy: " + cancelReason;
                 _context.SaveChanges();
                 return Json(new { success = true, message = "Đã từ chối đơn hàng!" });
             }
             return Json(new { success = false, message = "Không thể hủy đơn!" });
+        }
+
+        // 🔥 HÀM MỚI: API ĐỂ LẤY CHI TIẾT CÁC MÓN TRONG ĐƠN HÀNG (Dùng cho Modal Popup)
+        [HttpGet]
+        public IActionResult GetOrderDetails(int orderId)
+        {
+            var details = _context.OrderDetails
+                .Include(od => od.Food)
+                .Where(od => od.OrderId == orderId)
+                .Select(od => new {
+                    FoodName = od.Food.FoodName,
+                    ImageUrl = string.IsNullOrEmpty(od.Food.ImageUrl) ? "/images/default_food.jpg" : od.Food.ImageUrl,
+                    Price = od.Price,
+                    Quantity = od.Quantity,
+                    Note = od.Note
+                }).ToList();
+
+            if (!details.Any())
+            {
+                return Json(new { success = false, message = "Không tải được danh sách món ăn!" });
+            }
+
+            return Json(new { success = true, data = details });
         }
     }
 }

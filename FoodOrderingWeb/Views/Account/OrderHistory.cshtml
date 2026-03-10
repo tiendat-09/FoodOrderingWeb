@@ -107,6 +107,7 @@
                         <th>Quán ăn</th>
                         <th>Tổng tiền</th>
                         <th>Trạng thái</th>
+                        <th>Lý do hủy</th>
                         <th class="text-center" style="min-width: 140px;">Hành động</th>
                     </tr>
                 </thead>
@@ -114,7 +115,7 @@
                     @foreach (var item in Model)
                     {
                         var s = (item.Status ?? "").ToLower();
-                        var pm = (item.PaymentMethod ?? "").ToLower(); // Lấy phương thức thanh toán
+                        var pm = (item.PaymentMethod ?? "").ToLower();
 
                         <tr class="order-row" data-order-id="@item.OrderId" data-status="@s" data-payment="@pm">
                             <td class="fw-bold text-muted ps-3">#@item.OrderId</td>
@@ -133,11 +134,31 @@
                                     else if (s == "cancelled") { badgeClass = "bg-danger"; statusVN = "Đã hủy"; }
                                 }
                                 <span class="badge @badgeClass rounded-pill px-3 py-2">@statusVN</span>
-                                @if (s == "cancelled" && !string.IsNullOrEmpty(item.CancelReason))
-                                {
-                                    <div class="small text-danger mt-1"><i class="bi bi-info-circle"></i> @item.CancelReason</div>
-                                }
                             </td>
+
+                            <td class="text-danger small fw-bold">
+                                @{
+                                    string displayReason = "";
+                                    if (s == "cancelled" && !string.IsNullOrEmpty(item.CancelReason))
+                                    {
+                                        string rawReason = item.CancelReason;
+                                        if (rawReason.StartsWith("Khách hủy"))
+                                        {
+                                            displayReason = "Tôi: " + rawReason.Replace("Khách hủy: Khách hủy: ", "").Replace("Khách hủy: ", "").Trim();
+                                        }
+                                        else if (rawReason.StartsWith("Quán hủy"))
+                                        {
+                                            displayReason = "Quán: " + rawReason.Replace("Quán hủy: ", "").Trim();
+                                        }
+                                        else
+                                        {
+                                            displayReason = rawReason;
+                                        }
+                                    }
+                                }
+                                @displayReason
+                            </td>
+
                             <td class="text-center">
                                 @if (s == "completed")
                                 {
@@ -145,7 +166,6 @@
                                         <button class="btn btn-sm btn-outline-warning fw-bold rounded-pill px-3 py-1 w-100 btn-rate-store" data-order-id="@item.OrderId" onclick="openStoreRatingModal('@item.OrderId', this)" style="font-size: 0.85rem;">
                                             <i class="bi bi-star"></i> Đánh giá Quán
                                         </button>
-
                                         <button class="btn btn-sm btn-outline-info fw-bold rounded-pill px-3 py-1 w-100 btn-rate-driver" data-order-id="@item.OrderId" onclick="openDriverRatingModal('@item.OrderId', this)" style="font-size: 0.85rem;">
                                             <i class="bi bi-star"></i> Đánh giá Tài xế
                                         </button>
@@ -156,6 +176,12 @@
                                     <button class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3 py-1" onclick="openTrackingModal('@item.OrderId', '@s')" style="font-size: 0.85rem;">
                                         <i class="bi bi-geo-alt me-1"></i> Theo dõi
                                     </button>
+                                    @if (s == "pending")
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger fw-bold rounded-pill px-3 py-1 ms-1 mt-1 mt-md-0" onclick="cancelOrder('@item.OrderId')" style="font-size: 0.85rem;">
+                                            <i class="bi bi-x-circle me-1"></i> Hủy
+                                        </button>
+                                    }
                                 }
                             </td>
                         </tr>
@@ -171,6 +197,7 @@
 <div class="modal fade" id="driverRatingModal" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content border-0 shadow-lg rounded-4"><div class="modal-header border-0 bg-info text-dark rounded-top-4 py-2"><h6 class="modal-title fw-bold mb-0"><i class="bi bi-bicycle me-2"></i>Đánh giá Tài xế</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-4 text-center"><div class="d-flex justify-content-center gap-2 mb-3 text-info star-rating driver-stars" style="font-size: 2rem;"><i class="bi bi-star-fill" onclick="setDriverStar(1)" id="d_star1"></i><i class="bi bi-star-fill" onclick="setDriverStar(2)" id="d_star2"></i><i class="bi bi-star-fill" onclick="setDriverStar(3)" id="d_star3"></i><i class="bi bi-star-fill" onclick="setDriverStar(4)" id="d_star4"></i><i class="bi bi-star-fill" onclick="setDriverStar(5)" id="d_star5"></i></div><input type="hidden" id="driverRatingValue" value="5" /><textarea id="driverRatingComment" class="form-control bg-light border-0 small" rows="2" placeholder="Nhận xét thái độ tài xế..."></textarea></div><div class="modal-footer border-0 pt-0"><button type="button" class="btn btn-info btn-sm w-100 rounded-pill fw-bold text-dark" onclick="submitDriverRating()">Gửi Đánh Giá</button></div></div></div></div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         let currentTrackingOrderId = null; let currentStoreBtnElement = null; let currentDriverBtnElement = null;
 
@@ -190,70 +217,51 @@
                 }
             });
         }
-        $(document).ready(checkRatedButtons);
+
+        // 🔥 KIỂM TRA SESSION ĐỂ BẬT POPUP HOÀN TIỀN GIẢ LẬP SAU KHI REFRESH TRANG
+        $(document).ready(function() {
+            checkRatedButtons();
+
+            let pendingRefundAmount = sessionStorage.getItem('simulatedRefundAmount');
+            if (pendingRefundAmount) {
+                // Xóa session để không bị hiện lại ở lần sau
+                sessionStorage.removeItem('simulatedRefundAmount');
+
+                // Đợi 3 giây rồi hiện popup Ting Ting
+                setTimeout(function() {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Ting Ting! Đã nhận tiền hoàn',
+                        html: `
+                            <div class="alert alert-success border-0 shadow-sm mt-2">
+                                <i class="bi bi-bank fs-5 me-2"></i>
+                                Quán đã chuyển khoản hoàn lại <b>${pendingRefundAmount}</b> vào tài khoản ngân hàng. Vui lòng kiểm tra tài khoản nhé!
+                            </div>
+                        `,
+                        confirmButtonText: 'Tuyệt vời',
+                        confirmButtonColor: '#198754'
+                    });
+                }, 3000);
+            }
+        });
 
         function openTrackingModal(orderId, status) {
-            currentTrackingOrderId = orderId;
-            $('#trackOrderId').text(orderId);
-            let timeline = $('#trackingTimeline');
-            timeline.html('');
-            let steps = [];
-            status = status.toLowerCase();
+            currentTrackingOrderId = orderId; $('#trackOrderId').text(orderId); let timeline = $('#trackingTimeline'); timeline.html('');
+            let steps = []; status = status.toLowerCase();
+            if (status === 'pending') { steps.push({ title: 'Đã đặt đơn', active: true }); steps.push({ title: 'Chờ quán xác nhận', active: true, isPulse: true }); steps.push({ title: 'Đang tìm tài xế', active: false }); steps.push({ title: 'Đang giao hàng', active: false }); }
+            else if (status === 'preparing') { steps.push({ title: 'Quán đã nhận đơn', active: true }); steps.push({ title: 'Đang tìm Shipper', active: true, isPulse: true }); steps.push({ title: 'Tài xế lấy món', active: false }); steps.push({ title: 'Đang giao hàng', active: false }); }
+            else if (status === 'shipping') { steps.push({ title: 'Tài xế đã nhận đơn', active: true }); steps.push({ title: 'Đang đến quán', active: true, isPulse: true }); steps.push({ title: 'Đang giao hàng', active: false }); steps.push({ title: 'Hoàn thành', active: false }); }
+            else if (status === 'delivering') { steps.push({ title: 'Đã nhận đơn', active: true }); steps.push({ title: 'Đã lấy món', active: true }); steps.push({ title: 'Đang giao hàng', active: true, isPulse: true }); steps.push({ title: 'Hoàn thành', active: false }); }
+            else if (status === 'arrived') { steps.push({ title: 'Đã lấy món', active: true }); steps.push({ title: 'Đang giao hàng', active: true }); steps.push({ title: 'Tài xế đã đến', active: true, isPulse: true }); steps.push({ title: 'Hoàn thành', active: false }); }
 
-            // CHỈ GIỮ LẠI TIÊU ĐỀ CHÍNH
-            if (status === 'pending') {
-                steps.push({ title: 'Đã đặt đơn', active: true });
-                steps.push({ title: 'Chờ quán xác nhận', active: true, isPulse: true });
-                steps.push({ title: 'Đang tìm tài xế', active: false });
-                steps.push({ title: 'Đang giao hàng', active: false });
-            }
-            else if (status === 'preparing') {
-                steps.push({ title: 'Quán đã nhận đơn', active: true });
-                steps.push({ title: 'Đang tìm Shipper', active: true, isPulse: true });
-                steps.push({ title: 'Tài xế lấy món', active: false });
-                steps.push({ title: 'Đang giao hàng', active: false });
-            }
-            else if (status === 'shipping') {
-                steps.push({ title: 'Tài xế đã nhận đơn', active: true });
-                steps.push({ title: 'Đang đến quán', active: true, isPulse: true });
-                steps.push({ title: 'Đang giao hàng', active: false });
-                steps.push({ title: 'Hoàn thành', active: false });
-            }
-            else if (status === 'delivering') {
-                steps.push({ title: 'Đã nhận đơn', active: true });
-                steps.push({ title: 'Đã lấy món', active: true });
-                steps.push({ title: 'Đang giao hàng', active: true, isPulse: true });
-                steps.push({ title: 'Hoàn thành', active: false });
-            }
-            else if (status === 'arrived') {
-                steps.push({ title: 'Đã lấy món', active: true });
-                steps.push({ title: 'Đang giao hàng', active: true });
-                steps.push({ title: 'Tài xế đã đến', active: true, isPulse: true });
-                steps.push({ title: 'Hoàn thành', active: false });
-            }
-
-            // RENDER RA GIAO DIỆN
             steps.forEach(step => {
                 let activeClass = step.active ? 'step-active' : '';
                 let pulseHtml = step.isPulse ? '<span class="spinner-grow spinner-grow-sm text-primary float-end"></span>' : '';
-
-                let stepHtml = `
-                    <li class="timeline-item ${activeClass}">
-                        <div class="timeline-marker"></div>
-                        <div class="timeline-content">
-                            <h6 class="timeline-title mb-0" style="padding-top: 2px;">${step.title} ${pulseHtml}</h6>
-                        </div>
-                    </li>`;
+                let stepHtml = `<li class="timeline-item ${activeClass}"><div class="timeline-marker"></div><div class="timeline-content"><h6 class="timeline-title mb-0" style="padding-top: 2px;">${step.title} ${pulseHtml}</h6></div></li>`;
                 timeline.append(stepHtml);
             });
-
-            // 🔥 ĐÂY LÀ ĐOẠN FIX LỖI MÀN HÌNH ĐEN 🔥
-            // Chỉ gọi lệnh hiển thị (show) khi Modal đang ở trạng thái TẮT
             let modalEl = document.getElementById('trackingModal');
-            if (!modalEl.classList.contains('show')) {
-                // getOrCreateInstance giúp dùng lại 1 cái vỏ Modal duy nhất, không tạo mới
-                bootstrap.Modal.getOrCreateInstance(modalEl).show();
-            }
+            if (!modalEl.classList.contains('show')) { bootstrap.Modal.getOrCreateInstance(modalEl).show(); }
         }
         $('#trackingModal').on('hidden.bs.modal', function () { currentTrackingOrderId = null; });
 
@@ -261,86 +269,99 @@
         function setStoreStar(level) { $('#storeRatingValue').val(level); for(let i=1; i<=5; i++) { if(i <= level) $('#s_star'+i).removeClass('bi-star').addClass('bi-star-fill'); else $('#s_star'+i).removeClass('bi-star-fill').addClass('bi-star'); } }
         function openDriverRatingModal(orderId, btnElem) { currentDriverBtnElement = btnElem; setDriverStar(5); $('#driverRatingComment').val(''); new bootstrap.Modal(document.getElementById('driverRatingModal')).show(); }
         function setDriverStar(level) { $('#driverRatingValue').val(level); for(let i=1; i<=5; i++) { if(i <= level) $('#d_star'+i).removeClass('bi-star').addClass('bi-star-fill'); else $('#d_star'+i).removeClass('bi-star-fill').addClass('bi-star'); } }
+
         function submitStoreRating() {
-            let orderId = $(currentStoreBtnElement).data('order-id');
-            let rating = $('#storeRatingValue').val();
-            let comment = $('#storeRatingComment').val();
-
-            // Gọi AJAX đẩy dữ liệu lên Controller
+            let orderId = $(currentStoreBtnElement).data('order-id'); let rating = $('#storeRatingValue').val(); let comment = $('#storeRatingComment').val();
             $.post('/Home/SubmitStoreRating', { orderId: orderId, rating: rating, review: comment }, function(res) {
-                if(res.success) {
-                    $('#storeRatingModal').modal('hide');
-                    localStorage.setItem('rated_store_' + orderId, 'true');
-                    checkRatedButtons();
-                    if(typeof showGlobalNotification === 'function') showGlobalNotification('Cảm ơn bạn đã đánh giá Quán!', 'success');
-                }
+                if(res.success) { $('#storeRatingModal').modal('hide'); localStorage.setItem('rated_store_' + orderId, 'true'); checkRatedButtons(); if(typeof showGlobalNotification === 'function') showGlobalNotification('Cảm ơn bạn đã đánh giá Quán!', 'success'); }
             });
         }
-
         function submitDriverRating() {
-            let orderId = $(currentDriverBtnElement).data('order-id');
-            let rating = $('#driverRatingValue').val();
-            let comment = $('#driverRatingComment').val();
-
-            // Gọi AJAX đẩy dữ liệu lên Controller
+            let orderId = $(currentDriverBtnElement).data('order-id'); let rating = $('#driverRatingValue').val(); let comment = $('#driverRatingComment').val();
             $.post('/Home/SubmitDriverRating', { orderId: orderId, rating: rating, review: comment }, function(res) {
-                if(res.success) {
-                    $('#driverRatingModal').modal('hide');
-                    localStorage.setItem('rated_driver_' + orderId, 'true');
-                    checkRatedButtons();
-                    if(typeof showGlobalNotification === 'function') showGlobalNotification('Cảm ơn bạn đã đánh giá Bác tài!', 'success');
+                if(res.success) { $('#driverRatingModal').modal('hide'); localStorage.setItem('rated_driver_' + orderId, 'true'); checkRatedButtons(); if(typeof showGlobalNotification === 'function') showGlobalNotification('Cảm ơn bạn đã đánh giá Bác tài!', 'success'); }
+            });
+        }
+
+        // HÀM XỬ LÝ HỦY ĐƠN HÀNG DÀNH CHO KHÁCH TỰ HỦY
+        function cancelOrder(orderId) {
+            let trElem = $('.order-row[data-order-id="' + orderId + '"]');
+            let pm = trElem.data('payment') || "";
+            let isQR = (pm.includes('qr') || pm.includes('vnpay') || pm.includes('chuyển khoản'));
+            let amountText = trElem.find('td:eq(3)').text().trim(); // Lấy số tiền để lưu session
+
+            Swal.fire({
+                title: 'Hủy đơn hàng #' + orderId,
+                text: "Bạn có chắc chắn muốn hủy đơn hàng này không?",
+                icon: 'warning',
+                input: 'textarea',
+                inputPlaceholder: 'Vui lòng nhập lý do hủy đơn...',
+                inputAttributes: { 'aria-label': 'Lý do hủy đơn' },
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Đồng ý hủy',
+                cancelButtonText: 'Quay lại',
+                inputValidator: (value) => {
+                    if (!value || value.trim() === '') return 'Bạn cần nhập lý do để quán rút kinh nghiệm nhé!'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.showLoading();
+                    let finalReason = result.value;
+
+                    $.post('/Home/CancelOrder', { orderId: orderId, reason: finalReason }, function (res) {
+                        if (res.success) {
+                            if (isQR) {
+                                Swal.fire({
+                                    icon: 'info',
+                                    title: 'Hủy đơn thành công!',
+                                    html: `
+                                        <div class="text-start mt-2">
+                                            <div class="alert alert-warning border-0 shadow-sm">
+                                                <i class="bi bi-qr-code-scan fs-5 me-2"></i>
+                                                Đơn hàng đã thanh toán. Quán sẽ kiểm tra và <b>chuyển khoản hoàn tiền</b> lại cho bạn sớm nhất nhé.
+                                            </div>
+                                        </div>
+                                    `,
+                                    confirmButtonText: 'Đã hiểu',
+                                    confirmButtonColor: '#0dcaf0'
+                                }).then(() => {
+                                    // 🔥 Lưu cờ vào session để sau khi F5 sẽ báo Ting Ting
+                                    sessionStorage.setItem('simulatedRefundAmount', amountText);
+                                    window.location.reload();
+                                });
+                            }
+                            else {
+                                Swal.fire('Đã hủy!', 'Đơn hàng của bạn đã được hủy thành công.', 'success').then(() => {
+                                    window.location.reload();
+                                });
+                            }
+                        } else {
+                            Swal.fire('Lỗi', res.message || 'Không thể hủy đơn lúc này.', 'error');
+                        }
+                    }).fail(function() {
+                        Swal.fire('Lỗi', 'Đã xảy ra sự cố kết nối!', 'error');
+                    });
                 }
             });
         }
-        // 🔥 AJAX POLLING ĐÃ ĐƯỢC TỐI ƯU CỰC KỲ AN TOÀN
-        // 🔥 AJAX POLLING & LOGIC HOÀN TIỀN THỰC TẾ
+
+        // AJAX POLLING TỐI ƯU KIỂM TRA ĐƠN HÀNG KHI QUÁN HỦY
         $(document).ready(function () {
             let orderStatuses = {};
             $('.order-row').each(function() { orderStatuses[$(this).data('order-id')] = $(this).data('status'); });
 
-            // ==========================================
-            // CỖ MÁY KIỂM TRA HOÀN TIỀN (Chạy ngầm liên tục)
-            // ==========================================
-            function checkRefundStatus() {
-                for (let i = 0; i < localStorage.length; i++) {
-                    let key = localStorage.key(i);
-                    if (key && key.startsWith('refund_order_')) {
-                        let orderId = key.replace('refund_order_', '');
-                        let cancelTime = parseInt(localStorage.getItem(key));
-                        let now = new Date().getTime();
-
-                        // 🔥 ĐANG ĐỂ 10 GIÂY ĐỂ BẠN TEST.
-                        // Khi test xong, hãy đổi số 10000 thành (3 * 60 * 60 * 1000) để thành 3 tiếng nhé!
-                        let targetDelay = 10000;
-
-                        if (now >= cancelTime + targetDelay) {
-                            Swal.fire({
-                                title: 'TING TING! TIỀN ĐÃ VỀ',
-                                text: `Số tiền của đơn hàng bị hủy #${orderId} vừa được hoàn thành công vào tài khoản của bạn!`,
-                                icon: 'success',
-                                confirmButtonColor: '#00b96f'
-                            });
-                            localStorage.removeItem(key); // Hiện 1 lần rồi xóa trí nhớ
-                        }
-                    }
-                }
-            }
-            // Gọi kiểm tra hoàn tiền mỗi 3 giây
-            setInterval(checkRefundStatus, 3000);
-            // ==========================================
-
             setInterval(function () {
                 if ($('.modal.show').length === 0 && !document.body.classList.contains('swal2-shown')) {
-                    $('.modal-backdrop').remove();
-                    $('body').removeClass('modal-open').css({ 'padding-right': '', 'overflow': '' });
-
                     $('#order-table-container').load(location.href + ' #order-table-container > *', function() {
                         checkRatedButtons();
 
                         $('.order-row').each(function() {
-                            let id = $(this).data('order-id');
-                            let newStatus = $(this).data('status');
-                            let paymentMethod = $(this).data('payment') || "";
+                            let row = $(this);
+                            let id = row.data('order-id');
+                            let newStatus = row.data('status');
+                            let paymentMethod = row.data('payment') || "";
                             let oldStatus = orderStatuses[id];
 
                             if (oldStatus) {
@@ -349,18 +370,40 @@
                                 }
                                 else if (oldStatus !== 'cancelled' && newStatus === 'cancelled') {
                                     setTimeout(function() {
+                                        let amountText = row.find('td:eq(3)').text().trim();
+
                                         if (paymentMethod.includes('qr') || paymentMethod.includes('chuyển khoản') || paymentMethod.includes('vnpay')) {
-
-                                            // LƯU THỜI GIAN VỪA BỊ HỦY VÀO TRÍ NHỚ TRÌNH DUYỆT
-                                            localStorage.setItem('refund_order_' + id, new Date().getTime().toString());
-
                                             Swal.fire({
-                                                title: 'Đơn Bị Hủy - Đang Xử Lý Hoàn Tiền',
-                                                text: `Quán đã hủy đơn #${id}. Hệ thống đang xử lý, tiền sẽ tự động hoàn về tài khoản trong ít giờ tới.`,
-                                                icon: 'info'
+                                                icon: 'error',
+                                                title: 'Đơn hàng đã bị quán từ chối',
+                                                html: `
+                                                    <div class="text-start mt-2">
+                                                        <div class="alert alert-warning border-0 shadow-sm">
+                                                            <i class="bi bi-qr-code-scan fs-5 me-2"></i>
+                                                            Quán đã hoàn lại <b class="text-danger fs-5">${amountText}</b> qua tài khoản ngân hàng. Vui lòng kiểm tra tài khoản nhé!
+                                                        </div>
+                                                    </div>
+                                                `,
+                                                confirmButtonText: 'Đã hiểu',
+                                                confirmButtonColor: '#0dcaf0'
                                             });
-                                        } else {
-                                            Swal.fire({ title: 'Đơn hàng bị hủy', text: `Rất tiếc, quán đã hủy đơn #${id} của bạn.`, icon: 'warning' });
+                                        }
+                                        else {
+                                            // 🔥 ĐÃ FIX: XÓA DÒNG HIỂN THỊ LÝ DO KHI THANH TOÁN TIỀN MẶT
+                                            Swal.fire({
+                                                icon: 'error',
+                                                title: 'Đơn hàng đã bị quán từ chối',
+                                                html: `
+                                                    <div class="text-start mt-2">
+                                                        <div class="alert alert-secondary border-0 shadow-sm">
+                                                            <i class="bi bi-cash-stack fs-5 me-2"></i>
+                                                            Đơn thanh toán <b>Tiền mặt (COD)</b>. Bạn không bị trừ tiền!
+                                                        </div>
+                                                    </div>
+                                                `,
+                                                confirmButtonText: 'Đã hiểu',
+                                                confirmButtonColor: '#6c757d'
+                                            });
                                         }
                                     }, 800);
                                 }
@@ -368,22 +411,6 @@
                             orderStatuses[id] = newStatus;
                         });
                     });
-                } else {
-                    if ($('#trackingModal').hasClass('show') && currentTrackingOrderId) {
-                        $.get(location.href, function(data) {
-                            let newRow = $(data).find('.order-row[data-order-id="' + currentTrackingOrderId + '"]');
-                            if (newRow.length > 0) {
-                                let liveStatus = newRow.data('status');
-                                if (liveStatus !== orderStatuses[currentTrackingOrderId]) {
-                                    openTrackingModal(currentTrackingOrderId, liveStatus);
-                                    orderStatuses[currentTrackingOrderId] = liveStatus;
-                                }
-                                if(liveStatus === 'completed' || liveStatus === 'cancelled') {
-                                    setTimeout(function() { $('#trackingModal').modal('hide'); }, 1000);
-                                }
-                            }
-                        });
-                    }
                 }
             }, 4000);
         });

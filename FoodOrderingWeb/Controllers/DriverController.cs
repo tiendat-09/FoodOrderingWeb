@@ -28,10 +28,26 @@ namespace FoodOrderingWeb.Controllers
 
             var driverId = HttpContext.Session.GetInt32("UserId");
 
-            // 1. Lấy thống kê
+            // 1. Lấy thống kê đơn hàng và thu nhập hôm nay
             ViewBag.TodayOrders = _context.Orders.Count(o => o.DriverId == driverId && o.OrderDate.HasValue && o.OrderDate.Value.Date == DateTime.Today && o.Status == "Completed");
             ViewBag.TodayIncome = _context.Orders.Where(o => o.DriverId == driverId && o.OrderDate.HasValue && o.OrderDate.Value.Date == DateTime.Today && o.Status == "Completed").Sum(o => (decimal?)o.ShippingFee) ?? 0;
-            ViewBag.Rating = 5.0;
+
+            // --- BẮT ĐẦU TÍNH TRUNG BÌNH SAO TÀI XẾ ---
+            // (Lưu ý: Đổi tên 'DriverRating' thành đúng tên cột lưu số sao tài xế trong DB của bạn)
+            var driverRatings = _context.Orders
+                .Where(o => o.DriverId == driverId && o.DriverRating != null && o.DriverRating > 0)
+                .Select(o => o.DriverRating.Value)
+                .ToList();
+
+            double avgRating = 5.0; // Mặc định 5.0 sao cho tài xế mới chưa có đánh giá nào
+            if (driverRatings.Any())
+            {
+                avgRating = driverRatings.Average(r => (double)r);
+            }
+
+            // Làm tròn 1 chữ số thập phân (VD: 4.5, 4.8) và gán vào ViewBag
+            ViewBag.Rating = Math.Round(avgRating, 1).ToString("0.0");
+            // --- KẾT THÚC TÍNH SAO ---
 
             // 2. TÌM ĐƠN HÀNG ĐANG ÔM (Shipping hoặc Delivering)
             var activeOrder = _context.Orders

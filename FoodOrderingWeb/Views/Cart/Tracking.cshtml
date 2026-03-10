@@ -87,7 +87,6 @@
         background: #10b981;
     }
 
-    /* CSS Đánh giá sao */
     input[name="drating"] {
         display: none;
     }
@@ -170,7 +169,6 @@
                         <input type="radio" id="dstar2" name="drating" value="2" /><label for="dstar2" style="font-size: 40px; color: #ccc; cursor: pointer;">★</label>
                         <input type="radio" id="dstar1" name="drating" value="1" /><label for="dstar1" style="font-size: 40px; color: #ccc; cursor: pointer;">★</label>
                     </div>
-
                     <textarea id="driverReviewText" class="form-control rounded-3 bg-light" rows="3" placeholder="Tài xế giao hàng thân thiện, nhiệt tình..."></textarea>
                     <button type="button" id="btnSubmitDriverReview" class="btn btn-success fw-bold w-100 rounded-pill mt-4 py-2">GỬI ĐÁNH GIÁ</button>
                 </form>
@@ -180,54 +178,99 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         $(document).ready(function () {
             let orderId = @Model.OrderId;
-            let currentStatus = '@Model.Status';
+            let currentStatus = '@Model.Status'.toLowerCase();
+            let paymentMethod = '@(Model.PaymentMethod ?? "")'.toLowerCase(); // Lấy PTTT
+            let initialCancelReason = @Html.Raw(Json.Serialize(Model.CancelReason ?? "Không có lý do"));
 
-            if (currentStatus !== 'Completed' && currentStatus !== 'Cancelled') {
+            function showCancelPopup(reason, amount) {
+                let displayReason = reason ? reason : 'Quán bận đột xuất hoặc hết nguyên liệu';
+                let refundMoney = amount ? amount.toLocaleString('vi-VN') + ' đ' : '0 đ';
+
+                let htmlContent = `<div class="text-start mt-3"><p class="mb-2"><b>Lý do:</b> <span class="text-danger fw-bold">${displayReason}</span></p>`;
+
+                // 🔥 TÙY BIẾN THÔNG BÁO DỰA THEO PHƯƠNG THỨC THANH TOÁN
+                if (paymentMethod.includes('qr') || paymentMethod.includes('chuyển') || paymentMethod.includes('vnpay')) {
+                    htmlContent += `
+                        <div class="alert alert-warning mt-3 border-0 shadow-sm text-start">
+                            <i class="bi bi-qr-code-scan fs-4 me-2"></i>
+                            Quán đã chuyển khoản trả bạn <b class="text-danger fs-5">${refundMoney}</b>. Vui lòng kiểm tra tài khoản nhé!
+                        </div>`;
+                } else {
+                    htmlContent += `
+                        <div class="alert alert-secondary mt-3 border-0 shadow-sm text-start">
+                            <i class="bi bi-cash-stack fs-4 me-2"></i>
+                            Đơn hàng thanh toán <b>Tiền mặt (COD)</b> đã bị hủy. Bạn không bị trừ tiền!
+                        </div>`;
+                }
+                htmlContent += `</div>`;
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Đơn hàng đã bị hủy!',
+                    html: htmlContent,
+                    confirmButtonText: 'Quay lại lịch sử',
+                    confirmButtonColor: '#0dcaf0',
+                    allowOutsideClick: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = '/Account/OrderHistory';
+                    }
+                });
+            }
+
+            if (currentStatus === 'cancelled') {
+                showCancelPopup(initialCancelReason, @(Model.TotalAmount));
+                return;
+            }
+
+            if (currentStatus !== 'completed' && currentStatus !== 'cancelled') {
                 setInterval(function () {
-                    $.get('/Cart/CheckOrderStatus?orderId=' + orderId, function (res) {
-                        if (res.success && res.status !== currentStatus) {
-                            if (res.status === 'Completed') {
-                                // 🔥 KHI GIAO XONG -> BÁO AJAX "ĐƠN ĐÃ ĐẾN TAY BẠN" -> BẬT POPUP ĐÁNH GIÁ
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Đơn hàng đã đến tay bạn! 🎉',
-                                    text: 'Chúc bạn ngon miệng. Hãy dành chút thời gian đánh giá tài xế nhé!',
-                                    confirmButtonColor: '#198754',
-                                    confirmButtonText: 'Đánh giá ngay',
-                                    allowOutsideClick: false
-                                }).then((result) => {
-                                    if (result.isConfirmed) {
-                                        currentStatus = 'Completed';
-                                        $('#liveStatusText').text('Đã giao thành công');
-                                        $('.stepper-item:last-child').addClass('active');
-                                        $('#driverReviewModal').modal('show'); // Bật modal đánh giá tài xế
+                    let urlCheck = '/Cart/CheckOrderStatus?orderId=' + orderId + '&t=' + new Date().getTime();
+
+                    $.ajax({
+                        url: urlCheck, type: 'GET', cache: false,
+                        success: function (res) {
+                            if (res.success) {
+                                let newStatus = (res.status || res.Status || "").toLowerCase();
+
+                                if (newStatus && newStatus !== currentStatus) {
+                                    if (newStatus === 'cancelled') {
+                                        currentStatus = 'cancelled';
+                                        let reason = res.cancelReason || res.CancelReason;
+                                        let amount = res.totalAmount || res.TotalAmount;
+                                        showCancelPopup(reason, amount);
                                     }
-                                });
-                            } else {
-                                location.reload(); // Các trạng thái khác tự reload
+                                    else if (newStatus === 'completed') {
+                                        currentStatus = 'completed';
+                                        Swal.fire({
+                                            icon: 'success', title: 'Đơn hàng đã đến tay bạn! 🎉', text: 'Hãy dành chút thời gian đánh giá tài xế nhé!',
+                                            confirmButtonColor: '#198754', confirmButtonText: 'Đánh giá ngay', allowOutsideClick: false
+                                        }).then((result) => {
+                                            if (result.isConfirmed) {
+                                                $('#liveStatusText').text('Đã giao thành công');
+                                                $('.stepper-item:last-child').addClass('active');
+                                                $('#driverReviewModal').modal('show');
+                                            }
+                                        });
+                                    }
+                                    else { location.reload(); }
+                                }
                             }
                         }
                     });
-                }, 5000);
+                }, 3000);
             }
 
-            // Xử lý gửi đánh giá tài xế
             $('#btnSubmitDriverReview').click(function() {
                 let rating = $('input[name="drating"]:checked').val();
-                if (!rating) {
-                    Swal.fire('Chú ý', 'Vui lòng chọn số sao!', 'warning'); return;
-                }
-
+                if (!rating) { Swal.fire('Chú ý', 'Vui lòng chọn số sao!', 'warning'); return; }
                 let btn = $(this);
                 btn.html('<span class="spinner-border spinner-border-sm"></span> Đang gửi...').prop('disabled', true);
-
-                $.post('/Cart/SubmitDriverReview', {
-                    orderId: $('#reviewOrderId').val(),
-                    rating: rating,
-                    review: $('#driverReviewText').val()
+                $.post('/Cart/SubmitDriverReview', { orderId: $('#reviewOrderId').val(), rating: rating, review: $('#driverReviewText').val()
                 }, function(res) {
                     if (res.success) {
                         $('#driverReviewModal').modal('hide');

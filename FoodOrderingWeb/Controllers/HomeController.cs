@@ -14,12 +14,12 @@ namespace FoodOrderingWeb.Controllers
             _context = context;
         }
 
-        // 1. TRANG CHỦ: Hiện món ăn của quán ĐANG MỞ
+        // 1. TRANG CHỦ: Hiện món ăn của quán ĐANG MỞ VÀ CÒN MÓN (IsActive == true)
         public IActionResult Index(string searchString)
         {
             var foods = _context.Foods
                 .Include(f => f.Store)
-                .Where(f => f.Store.IsActive == true && f.Store.IsOpen == true)
+                .Where(f => f.Store.IsActive == true && f.Store.IsOpen == true && f.IsActive == true) // 🔥 Đã thêm kiểm tra f.IsActive == true
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(searchString))
@@ -76,6 +76,7 @@ namespace FoodOrderingWeb.Controllers
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+
         [HttpPost]
         public IActionResult SubmitStoreRating(int orderId, int rating, string review)
         {
@@ -102,6 +103,36 @@ namespace FoodOrderingWeb.Controllers
                 return Json(new { success = true });
             }
             return Json(new { success = false, message = "Không tìm thấy đơn hàng" });
+        }
+
+        [HttpPost]
+        public IActionResult CancelOrder(int orderId, string reason)
+        {
+            try
+            {
+                // 1. Lấy user hiện tại (ví dụ)
+                // int userId = int.Parse(HttpContext.Session.GetString("UserId"));
+
+                // 2. Tìm đơn hàng
+                var order = _context.Orders.FirstOrDefault(o => o.OrderId == orderId && o.Status == "pending");
+
+                if (order == null)
+                {
+                    return Json(new { success = false, message = "Đơn hàng không tồn tại hoặc quán đã nhận đơn (không thể hủy)." });
+                }
+
+                // 3. Cập nhật trạng thái và lý do
+                order.Status = "cancelled";
+                order.CancelReason = "Khách hủy: " + reason;
+
+                _context.SaveChanges();
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+            }
         }
     }
 }

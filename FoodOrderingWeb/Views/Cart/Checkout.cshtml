@@ -218,7 +218,7 @@
                             <input type="radio" name="paymentMethod" id="payQR" value="VIETQR" onchange="if(this.checked) showQRModal()">
                             <div class="payment-box">
                                 <i class="bi bi-qr-code-scan"></i>
-                                <span class="fw-bold">Chuyển khoản (VietQR)</span>
+                                <span class="fw-bold">Chuyển khoản</span>
                             </div>
                         </label>
                     </div>
@@ -278,8 +278,12 @@
             <div class="modal-body text-center p-4">
                 <h6 class="text-primary fw-bold mb-3">Vui lòng quét mã QR bên dưới để thanh toán</h6>
 
-                <div class="bg-light p-3 rounded-4 mb-3 d-inline-block position-relative" style="min-height: 250px; min-width: 250px;">
-                    <img src="~/images/qr.jpg" alt="Mã QR Thanh Toán" style="max-width: 250px; width: 100%; border-radius: 10px; border: 5px solid white;">
+                <div class="bg-light p-3 rounded-4 mb-3 d-flex justify-content-center align-items-center flex-column" style="min-height: 250px; min-width: 250px; position: relative;">
+                    <div id="qrLoading">
+                        <div class="spinner-border text-success" role="status"></div>
+                        <div class="small mt-2 text-muted fw-bold">Đang tạo mã...</div>
+                    </div>
+                    <img id="dynamicQRImage" src="" alt="Mã QR Thanh Toán" style="max-width: 250px; width: 100%; border-radius: 10px; border: 5px solid white; display: none;">
                 </div>
 
                 <div class="alert alert-warning small border-0 mb-0 text-start">
@@ -296,17 +300,76 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        // HÀM HIỂN THỊ MODAL MÃ QR (Rút gọn tối đa vì dùng ảnh tĩnh)
+        let currentTotal = Math.round(@Html.Raw(Json.Serialize(Model.TotalAmount)));
+
+        // 🔥 1. THUẬT TOÁN TẠO CHUỖI VIETQR (EMVCo) CHUẨN QUỐC TẾ
+        // Giải quyết triệt để lỗi "Không đúng định dạng" của Momo / MB Bank
+        function generateVietQRString(bin, acc, amount, desc) {
+            let pad = (n) => (n < 10 ? '0' : '') + n;
+
+            let accInfo = `0006${bin}01${pad(acc.length)}${acc}`;
+            let orgInfo = `0010A00000072701${pad(accInfo.length)}${accInfo}0208QRIBFTTA`;
+            let t38 = `38${pad(orgInfo.length)}${orgInfo}`;
+
+            let t54 = `54${pad(amount.toString().length)}${amount}`;
+            let descStr = `08${pad(desc.length)}${desc}`;
+            let t62 = `62${pad(descStr.length)}${descStr}`;
+
+            let payload = `000201010212${t38}5303704${t54}5802VN${t62}6304`;
+
+            // Tính toán mã kiểm tra bảo mật CRC16 (Bắt buộc để ngân hàng nhận diện)
+            let crc = 0xFFFF;
+            for (let i = 0; i < payload.length; i++) {
+                crc ^= payload.charCodeAt(i) << 8;
+                for (let j = 0; j < 8; j++) {
+                    crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
+                }
+            }
+            return payload + (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+        }
+
+        // 2. HÀM HIỂN THỊ MODAL VÀ VẼ MÃ QR
         function showQRModal() {
+            const amount = Math.round(currentTotal);
+            const bankBin = "970422"; // Mã định danh của MB Bank
+            const accNo = "0344345948"; // Số tài khoản của bạn
+            const desc = "ThanhToan"; // Ghi chú không dấu, không khoảng trắng
+
+            // Tự động tạo chuỗi mã hóa ngân hàng
+            const emvcoString = generateVietQRString(bankBin, accNo, amount, desc);
+
+            // Dùng API vẽ QR trung lập (Không bị trình duyệt chặn, vẽ từ chuỗi chuẩn)
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(emvcoString)}`;
+
+            const imgEl = document.getElementById('dynamicQRImage');
+            const loadEl = document.getElementById('qrLoading');
+
+            // Reset UI
+            imgEl.style.display = 'none';
+            loadEl.style.display = 'block';
+            loadEl.innerHTML = '<div class="spinner-border text-success" role="status"></div><div class="small mt-2 text-muted fw-bold">Đang tạo mã...</div>';
+
+            imgEl.onload = function() {
+                loadEl.style.display = 'none';
+                imgEl.style.display = 'block';
+            };
+
+            imgEl.onerror = function() {
+                loadEl.innerHTML = '<span class="text-danger fw-bold"><i class="bi bi-wifi-off"></i> Lỗi mạng không thể tải QR</span>';
+            };
+
+            // Gán link để vẽ QR
+            imgEl.src = qrUrl;
+
+            // Hiển thị Modal
             var qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
             qrModal.show();
         }
 
+        // ================= XỬ LÝ NÚT TÍNH PHÍ SHIP VÀ ĐẶT HÀNG =================
         $(document).ready(function() {
-            // Tiền gốc lúc chưa có ship
-            let subtotal = @Model.TotalAmount;
+            let subtotal = Math.round(@Html.Raw(Json.Serialize(Model.TotalAmount)));
 
-            // --- XỬ LÝ TÍNH PHÍ SHIP ---
             $('#btnGetLocation').click(function() {
                 let btn = $(this);
                 let storeLat = parseFloat($('#fixedStoreLat').val());
@@ -314,11 +377,7 @@
                 let storeName = $('#fixedStoreName').val();
 
                 if (!storeLat || !storeLng || isNaN(storeLat)) {
-                    if (typeof showGlobalNotification === 'function') {
-                        showGlobalNotification('Quán chưa cập nhật tọa độ!', false);
-                    } else {
-                        Swal.fire('Chú ý', 'Quán chưa có tọa độ.', 'warning');
-                    }
+                    Swal.fire('Chú ý', 'Quán chưa có tọa độ.', 'warning');
                     return;
                 }
 
@@ -326,28 +385,22 @@
 
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(function(position) {
-                        let userLat = position.coords.latitude;
-                        let userLng = position.coords.longitude;
-
                         $.ajax({
                             url: '/Cart/CalculateShippingFee',
                             type: 'POST',
-                            data: { userLat: userLat, userLng: userLng, storeLat: storeLat, storeLng: storeLng },
+                            data: { userLat: position.coords.latitude, userLng: position.coords.longitude, storeLat: storeLat, storeLng: storeLng },
                             success: function(res) {
                                 if (res.success) {
                                     $('#hiddenShippingFee').val(res.fee);
                                     $('#hiddenDistanceKm').val(res.distance);
 
-                                    let textInfo = res.fee === 0
-                                        ? `<i class="bi bi-info-circle"></i> Freeship từ ${storeName} (${res.distance} km)`
-                                        : `<i class="bi bi-info-circle"></i> Giao từ ${storeName} (${res.distance} km)`;
-
+                                    let textInfo = res.fee === 0 ? `<i class="bi bi-info-circle"></i> Freeship từ ${storeName} (${res.distance} km)` : `<i class="bi bi-info-circle"></i> Giao từ ${storeName} (${res.distance} km)`;
                                     $('#distanceInfo').html(textInfo);
                                     $('#shippingFeeDisplay').text(res.fee === 0 ? "Miễn phí" : res.fee.toLocaleString('vi-VN') + 'đ');
 
-                                    // CỘNG SHIP VÀO TỔNG TIỀN VÀ HIỂN THỊ LẠI
-                                    let total = subtotal + res.fee;
-                                    $('#totalOrderDisplay').text(total.toLocaleString('vi-VN') + 'đ');
+                                    // CỘNG SHIP VÀO TỔNG TIỀN CHO MÃ QR
+                                    currentTotal = Math.round(subtotal + res.fee);
+                                    $('#totalOrderDisplay').text(currentTotal.toLocaleString('vi-VN') + 'đ');
 
                                     btn.html('<i class="bi bi-geo-alt-fill"></i> Đã tính phí ship');
                                     btn.removeClass('btn-outline-success').addClass('btn-success text-white');
@@ -361,7 +414,6 @@
                 }
             });
 
-            // --- XỬ LÝ NÚT XÁC NHẬN ĐẶT HÀNG ---
             $('#btnPlaceOrder').on('click', function (e) {
                 e.preventDefault();
                 let receiverName = $('#inputReceiverName').val().trim();
@@ -381,27 +433,23 @@
                 let btnPlace = $(this);
                 btnPlace.html('<span class="spinner-border spinner-border-sm me-2"></span>ĐANG XỬ LÝ...').prop('disabled', true);
 
-                let dataToSend = {
-                    receiverName: receiverName,
-                    receiverPhone: receiverPhone,
-                    address: address,
-                    paymentMethod: $('input[name="paymentMethod"]:checked').val() || 'COD',
-                    storeId: $('#fixedStoreId').val() || '0',
-                    shippingFee: $('#hiddenShippingFee').val() || '0'
-                };
-
                 $.ajax({
                     url: '/Cart/ProcessOrder',
                     type: 'POST',
-                    data: dataToSend,
+                    data: {
+                        receiverName: receiverName,
+                        receiverPhone: receiverPhone,
+                        address: address,
+                        paymentMethod: $('input[name="paymentMethod"]:checked').val() || 'COD',
+                        storeId: $('#fixedStoreId').val() || '0',
+                        shippingFee: $('#hiddenShippingFee').val() || '0'
+                    },
                     success: function (res) {
                         if (res.success) {
                             Swal.fire({
                                 icon: 'success', title: 'Đặt hàng thành công!', text: 'Đơn hàng đã được gửi tới quán.',
                                 timer: 2000, showConfirmButton: false
-                            }).then(() => {
-                                window.location.href = '/Account/OrderHistory';
-                            });
+                            }).then(() => { window.location.href = '/Account/OrderHistory'; });
                         } else {
                             Swal.fire('Lỗi', res.message, 'error');
                             btnPlace.html('XÁC NHẬN ĐẶT HÀNG').prop('disabled', false);

@@ -54,7 +54,15 @@
     <div class="table-responsive" id="storeOrderContainer">
         <table class="table table-hover align-middle">
             <thead class="table-light">
-                <tr><th>Mã đơn</th><th>Khách hàng</th><th>Thời gian</th><th>Tài xế</th><th>Tiền đơn</th><th class="text-center">Trạng thái / Thao tác</th></tr>
+                <tr>
+                    <th>Mã đơn</th>
+                    <th>Khách hàng</th>
+                    <th>Thời gian</th>
+                    <th>Tài xế</th>
+                    <th>Tiền đơn</th>
+                    <th class="text-center">Chi tiết</th>
+                    <th class="text-center" style="min-width: 150px;">Trạng thái / Thao tác</th>
+                </tr>
             </thead>
             <tbody>
                 @foreach (var item in Model)
@@ -72,7 +80,7 @@
                             }
                             else if (s == "cancelled" || s.Contains("từ chối"))
                             {
-                                <span class="text-danger small fw-bold"><i class="bi bi-x-circle"></i> Đơn đã hủy</span>
+                                <span class="text-danger small fw-bold"><i class="bi bi-x-circle"></i> Đã hủy</span>
                             }
                             else if (s == "pending" || s == "chờ xử lý")
                             {
@@ -86,6 +94,13 @@
                             }
                         </td>
                         <td class="fw-bold text-danger">@item.TotalAmount.ToString("N0")đ</td>
+
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-info text-white rounded-circle shadow-sm" onclick="viewOrderDetails(@item.OrderId)" title="Xem chi tiết món" style="width: 35px; height: 35px;">
+                                <i class="bi bi-eye-fill fs-6"></i>
+                            </button>
+                        </td>
+
                         <td class="text-center">
                             @if (s == "pending")
                             {
@@ -96,6 +111,31 @@
                                     <i class="bi bi-x-lg fs-6"></i>
                                 </button>
                             }
+                            else if (s == "cancelled")
+                            {
+                                bool isUserCancel = !string.IsNullOrEmpty(item.CancelReason) && item.CancelReason.StartsWith("Khách hủy");
+                                string cancelText = isUserCancel ? "Khách tự hủy" : "Quán từ chối";
+                                string cleanReason = item.CancelReason?.Replace("Khách hủy: ", "").Replace("Quán hủy: ", "").Trim();
+
+                                <div class="d-flex flex-column align-items-center">
+                                    <span class="badge bg-danger px-3 py-1 rounded-pill mb-1">@cancelText</span>
+
+                                    @if (!string.IsNullOrEmpty(cleanReason))
+                                    {
+                                        <span class="small text-muted mb-1 fst-italic" style="max-width: 150px; word-wrap: break-word; font-size: 0.8rem;">(@cleanReason)</span>
+                                    }
+
+                                    @{
+                                        var pm = (item.PaymentMethod ?? "").ToLower();
+                                    }
+                                    @if (pm.Contains("qr") || pm.Contains("vnpay") || pm.Contains("chuyển khoản"))
+                                    {
+                                        <span class="badge" style="background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; font-size: 0.75rem;">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Hoàn: <b>@item.TotalAmount.ToString("N0")đ</b>
+                                        </span>
+                                    }
+                                </div>
+                            }
                             else
                             {
                                 string statusVN = s switch
@@ -105,10 +145,9 @@
                                     "arrived" => "Chờ lấy món",
                                     "delivering" => "Đang giao",
                                     "completed" => "Thành công",
-                                    "cancelled" => "Đã hủy",
                                     _ => item.Status
                                 };
-                                string bClass = s == "completed" ? "bg-success" : (s == "cancelled" ? "bg-danger" : (s == "arrived" ? "bg-dark" : "bg-primary"));
+                                string bClass = s == "completed" ? "bg-success" : (s == "arrived" ? "bg-dark" : "bg-primary");
                                 <span class="badge @bClass px-3 py-2 rounded-pill">@statusVN</span>
                             }
                         </td>
@@ -122,6 +161,45 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        // Hàm xem chi tiết đơn hàng bằng SweetAlert2
+        function viewOrderDetails(id) {
+            $.get('/StoreManager/GetOrderDetails', { orderId: id }, function(res) {
+                if(res.success) {
+                    let htmlContent = '<ul class="list-group text-start shadow-sm rounded-3 mt-3">';
+
+                    res.data.forEach(item => {
+                        let noteHTML = item.note ? `<div class="text-danger mt-1" style="font-size: 0.85rem;"><i class="bi bi-exclamation-circle-fill"></i> Ghi chú: ${item.note}</div>` : '';
+
+                        htmlContent += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center p-3 border-0 border-bottom">
+                            <div class="d-flex align-items-center">
+                                <img src="${item.imageUrl}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 15px; border: 1px solid #ddd;">
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-dark">${item.foodName}</h6>
+                                    <div class="text-muted small">${item.price.toLocaleString('vi-VN')} đ</div>
+                                    ${noteHTML}
+                                </div>
+                            </div>
+                            <span class="badge bg-primary rounded-pill px-3 py-2 fs-6">x ${item.quantity}</span>
+                        </li>`;
+                    });
+                    htmlContent += '</ul>';
+
+                    Swal.fire({
+                        title: `<h4 class="fw-bold text-primary mb-0"><i class="bi bi-receipt"></i> Chi tiết đơn #${id}</h4>`,
+                        html: htmlContent,
+                        width: '550px',
+                        showCloseButton: true,
+                        showConfirmButton: true,
+                        confirmButtonText: 'Đóng',
+                        confirmButtonColor: '#6c757d'
+                    });
+                } else {
+                    Swal.fire('Lỗi', res.message, 'error');
+                }
+            });
+        }
+
         // Hàm Nhận đơn
         function acceptOrder(id) {
             $.post('/StoreManager/AcceptOrder', { orderId: id }, function(res) {

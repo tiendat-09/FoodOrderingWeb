@@ -42,10 +42,6 @@ namespace FoodOrderingWeb.Controllers
             if (HttpContext.Session.GetString("Role") != "StoreOwner") return RedirectToAction("Index", "Home");
             int? storeId = GetCurrentStoreId();
             if (storeId == null) return RedirectToAction("RegisterStore", "Account");
-
-            // ==========================================================
-            // 1. THỐNG KÊ DOANH THU & ĐƠN HÀNG (Đã cập nhật theo Ngày/Tháng)
-            // ==========================================================
             var storeOrders = _context.Orders.Where(o => o.StoreId == storeId).ToList();
             var completedOrders = storeOrders.Where(o => !string.IsNullOrEmpty(o.Status) && o.Status.ToLower() == "completed").ToList();
 
@@ -65,9 +61,6 @@ namespace FoodOrderingWeb.Controllers
                 .Where(o => o.OrderDate.HasValue && o.OrderDate.Value.Month == DateTime.Now.Month && o.OrderDate.Value.Year == DateTime.Now.Year)
                 .Sum(o => (decimal?)o.TotalAmount) ?? 0;
 
-            // ==========================================================
-            // 2. TÍNH ĐÁNH GIÁ TRUNG BÌNH CỦA QUÁN
-            // ==========================================================
             var ratings = _context.Orders.Where(o => o.StoreId == storeId && o.StoreRating > 0);
             int totalReviews = ratings.Count();
             double averageRating = totalReviews > 0 ? ratings.Average(o => (double)o.StoreRating) : 5.0;
@@ -75,15 +68,12 @@ namespace FoodOrderingWeb.Controllers
             ViewBag.TotalReviews = totalReviews;
             ViewBag.AverageRating = Math.Round(averageRating, 1);
 
-            // ==========================================================
-            // 3. LẤY 5 ĐƠN HÀNG MỚI NHẤT
-            // ==========================================================
             var recentOrders = _context.Orders
                 .Include(o => o.User)
                 .Include(o => o.Driver)
                 .Where(o => o.StoreId == storeId)
                 .OrderByDescending(o => o.OrderDate)
-                .Take(5)
+                .Take(5) // lấy 5 đơn gần nhất
                 .ToList();
 
             return View(recentOrders);
@@ -142,6 +132,8 @@ namespace FoodOrderingWeb.Controllers
                 store.Description = model.Description;
                 store.OperatingDays = model.OperatingDays;
                 store.IsActive = model.IsActive;
+                store.Latitude = model.Latitude;
+                store.Longitude = model.Longitude;
 
                 if (imageFile != null && imageFile.Length > 0)
                 {
@@ -271,12 +263,12 @@ namespace FoodOrderingWeb.Controllers
                     return Json(new { success = false, message = "Không tìm thấy món ăn." });
                 }
 
-                // 1. Kiểm tra xem món ăn này đã từng được khách nào đặt chưa
+                // kiểm món xem ai đã đặt chứ
                 bool isOrdered = _context.OrderDetails.Any(od => od.FoodId == id);
 
                 if (isOrdered)
                 {
-                    // Nếu đã có người đặt, KHÔNG ĐƯỢC XÓA để bảo toàn lịch sử hóa đơn
+                    // khong xoá nếu có ng đặt
                     return Json(new
                     {
                         success = false,
@@ -284,7 +276,7 @@ namespace FoodOrderingWeb.Controllers
                     });
                 }
 
-                // 2. Nếu món ăn mới tạo, CHƯA AI ĐẶT BAO GIỜ -> Cho phép xóa thoải mái
+                // chưa ai đặt -> cho phép xóa thoải mái
                 _context.Foods.Remove(food);
                 _context.SaveChanges();
 
@@ -293,10 +285,10 @@ namespace FoodOrderingWeb.Controllers
             catch (Exception ex)
             {
                 return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
-            }
+            } 
         }
 
-        // 🔥 HÀM MỚI: API CẬP NHẬT TRẠNG THÁI HẾT MÓN/CÒN MÓN TỪ NÚT GẠT
+        // API CẬP NHẬT TRẠNG THÁI HẾT MÓN/CÒN MÓN TỪ NÚT GẠT
         [HttpPost]
         public IActionResult ToggleFoodStatus(int id, bool isActive)
         {

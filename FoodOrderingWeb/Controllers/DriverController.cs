@@ -28,28 +28,26 @@ namespace FoodOrderingWeb.Controllers
 
             var driverId = HttpContext.Session.GetInt32("UserId");
 
-            // 1. Lấy thống kê đơn hàng và thu nhập hôm nay
+            // số đơn
             ViewBag.TodayOrders = _context.Orders.Count(o => o.DriverId == driverId && o.OrderDate.HasValue && o.OrderDate.Value.Date == DateTime.Today && o.Status == "Completed");
+            // thu nhập
             ViewBag.TodayIncome = _context.Orders.Where(o => o.DriverId == driverId && o.OrderDate.HasValue && o.OrderDate.Value.Date == DateTime.Today && o.Status == "Completed").Sum(o => (decimal?)o.ShippingFee) ?? 0;
 
-            // --- BẮT ĐẦU TÍNH TRUNG BÌNH SAO TÀI XẾ ---
-            // (Lưu ý: Đổi tên 'DriverRating' thành đúng tên cột lưu số sao tài xế trong DB của bạn)
+            // đánh giá
             var driverRatings = _context.Orders
                 .Where(o => o.DriverId == driverId && o.DriverRating != null && o.DriverRating > 0)
                 .Select(o => o.DriverRating.Value)
                 .ToList();
 
-            double avgRating = 5.0; // Mặc định 5.0 sao cho tài xế mới chưa có đánh giá nào
+            double avgRating = 5.0; 
             if (driverRatings.Any())
             {
                 avgRating = driverRatings.Average(r => (double)r);
             }
 
-            // Làm tròn 1 chữ số thập phân (VD: 4.5, 4.8) và gán vào ViewBag
             ViewBag.Rating = Math.Round(avgRating, 1).ToString("0.0");
-            // --- KẾT THÚC TÍNH SAO ---
 
-            // 2. TÌM ĐƠN HÀNG ĐANG ÔM (Shipping hoặc Delivering)
+            // hiện đơn đang giữ
             var activeOrder = _context.Orders
                 .Include(o => o.Store)
                 .Include(o => o.OrderDetails).ThenInclude(od => od.Food)
@@ -57,12 +55,11 @@ namespace FoodOrderingWeb.Controllers
 
             ViewBag.ActiveOrder = activeOrder;
 
-            // 3. NẾU KHÔNG ÔM ĐƠN NÀO -> TÌM ĐƠN QUÁN ĐÃ NHẬN NHƯNG CHƯA CÓ TÀI XẾ (Preparing)
+            // đơn đang rảnh
             if (activeOrder == null)
             {
                 var pendingOrders = _context.Orders
                     .Include(o => o.Store)
-                    // 🔥 ĐÃ SỬA: Cho phép Tài xế thấy cả đơn Pending (vừa đặt xong) và Preparing (quán đang làm)
                     .Where(o => o.DriverId == null && o.Status == "Preparing")
                     .OrderByDescending(o => o.OrderDate)
                     .ToList();
@@ -87,7 +84,7 @@ namespace FoodOrderingWeb.Controllers
             }
 
             order.DriverId = driverId;
-            order.Status = "Shipping"; // 🔥 TÀI XẾ NHẬN -> ĐỔI THÀNH ĐANG ĐI LẤY/GIAO
+            order.Status = "Shipping"; 
             order.AcceptTime = DateTime.Now;
 
             await _context.SaveChangesAsync();
@@ -103,7 +100,6 @@ namespace FoodOrderingWeb.Controllers
             if (order == null || order.DriverId != driverId)
                 return Json(new { success = false, message = "Lỗi: Không tìm thấy đơn hàng hoặc bạn không có quyền!" });
 
-            // 🔥 CẬP NHẬT LOGIC THỜI GIAN MỚI
             if (newStatus == "Arrived")
             {
                 // Có thể lưu thêm ArrivedTime nếu muốn, hiện tại chưa cần thiết
@@ -177,9 +173,7 @@ namespace FoodOrderingWeb.Controllers
 
             return View(reviews);
         }
-        // ==========================================
-        // 🔥 TRANG HỒ SƠ TÀI XẾ (PROFILE)
-        // ==========================================
+
         [HttpGet("Profile")]
         public async Task<IActionResult> Profile()
         {

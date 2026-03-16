@@ -5,7 +5,7 @@ namespace FoodOrderingWeb.Helpers
 {
     public class MyUtilities
     {
-        // Hàm mã hóa mật khẩu (MD5) đơn giản
+        // mã hóa mật khẩu đơn giản
         public static string HashPassword(string password)
         {
             if (string.IsNullOrEmpty(password)) return "";

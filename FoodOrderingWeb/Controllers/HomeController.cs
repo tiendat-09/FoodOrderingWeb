@@ -19,7 +19,7 @@ namespace FoodOrderingWeb.Controllers
         {
             var foods = _context.Foods
                 .Include(f => f.Store)
-                .Where(f => f.Store.IsActive == true && f.Store.IsOpen == true && f.IsActive == true) // 🔥 Đã thêm kiểm tra f.IsActive == true
+                .Where(f => f.Store.IsActive == true && f.Store.IsOpen == true && f.IsActive == true) // Đã thêm kiểm tra f.IsActive == true
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(searchString))

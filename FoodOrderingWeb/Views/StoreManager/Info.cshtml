@@ -5,6 +5,9 @@
     var debugAvatar = Context.Session.GetString("Avatar");
     var debugFullName = Context.Session.GetString("FullName");
 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     // Xử lý dữ liệu lịch cũ
     string existingSchedule = Model.OperatingDays;
     if (string.IsNullOrEmpty(existingSchedule) || !existingSchedule.StartsWith("{"))
@@ -126,6 +129,27 @@
                 </div>
 
                 <div class="mb-4">
+                    <label class="form-label fw-bold text-primary">📍 Định vị Cửa hàng trên Bản đồ</label>
+
+                    <div class="input-group mb-2">
+                        <input type="text" id="mapSearchInput" class="form-control" placeholder="Nhập địa chỉ để tìm nhanh (VD: Ninh Kiều, Cần Thơ)...">
+                        <button class="btn btn-secondary" type="button" id="btnSearchMap">
+                            <i class="bi bi-search"></i> Tìm vị trí
+                        </button>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <input asp-for="Latitude" type="text" id="latInput" class="form-control bg-light" placeholder="Vĩ độ" readonly required />
+                        </div>
+                        <div class="col-6">
+                            <input asp-for="Longitude" type="text" id="lngInput" class="form-control bg-light" placeholder="Kinh độ" readonly required />
+                        </div>
+                    </div>
+                    <div id="map" style="height: 300px; width: 100%; border-radius: 10px; border: 2px solid #ddd; z-index: 1;"></div>
+                    <small class="text-danger fst-italic">* Hãy kéo thả ghim hoặc click trực tiếp lên bản đồ để chọn đúng vị trí quán của bạn.</small>
+                </div>
+                <div class="mb-4">
                     <label class="form-label fw-bold">Mô tả ngắn</label>
                     <textarea asp-for="Description" class="form-control" rows="2" placeholder="Giới thiệu ngắn về quán của bạn..."></textarea>
                 </div>
@@ -191,6 +215,128 @@
             }
         }
 
+        // XỬ LÝ BẢN ĐỒ ĐỊNH VỊ  
+        $(document).ready(function () {
+            // Lấy tọa độ an toàn, tránh lỗi văn hóa dấu phẩy/chấm
+            var currentLat = parseFloat('@(Model.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "10.0451")');
+            var currentLng = parseFloat('@(Model.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "105.7468")');
+
+            // Khởi tạo bản đồ
+            var map = L.map('map').setView([currentLat, currentLng], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Tạo ghim (Marker)
+            var marker = L.marker([currentLat, currentLng], {draggable: true}).addTo(map);
+
+            // Gắn tọa độ ban đầu vào ô input nếu lỡ đang bị null
+            if (!$('#latInput').val()) {
+                $('#latInput').val(currentLat.toFixed(6));
+                $('#lngInput').val(currentLng.toFixed(6));
+            }
+
+            // Khi kéo thả ghim
+            marker.on('dragend', function(e) {
+                var position = marker.getLatLng();
+                document.getElementById('latInput').value = position.lat.toFixed(6);
+                document.getElementById('lngInput').value = position.lng.toFixed(6);
+            });
+
+            // Khi click vào 1 điểm trên bản đồ
+            map.on('click', function(e) {
+                marker.setLatLng(e.latlng);
+                document.getElementById('latInput').value = e.latlng.lat.toFixed(6);
+                document.getElementById('lngInput').value = e.latlng.lng.toFixed(6);
+            });
+
+            // Sửa lỗi bản đồ bị xám một nửa khi nằm trong các thẻ ẩn/tab
+            setTimeout(function(){ map.invalidateSize(); }, 500);
+
+            // ----------------------------------------
+            // XỬ LÝ NÚT TÌM KIẾM ĐỊA CHỈ (CÓ TÍNH NĂNG TỰ ĐỘNG CẮT SỐ NHÀ)
+            // ----------------------------------------
+            function performSearch(query, isFallback = false) {
+                var btn = $('#btnSearchMap');
+                var originalText = '<i class="bi bi-search"></i> Tìm vị trí';
+                btn.html('<span class="spinner-border spinner-border-sm"></span>').prop('disabled', true);
+
+                $.get('https://nominatim.openstreetmap.org/search', {
+                    format: 'json',
+                    q: query,
+                    limit: 1,
+                    countrycodes: 'vn' // Giới hạn ở Việt Nam cho chuẩn
+                }, function(data) {
+                    if (data && data.length > 0) {
+                        btn.html(originalText).prop('disabled', false);
+                        var lat = parseFloat(data[0].lat);
+                        var lon = parseFloat(data[0].lon);
+
+                        // Cho bản đồ bay đến tọa độ mới và đặt ghim
+                        map.setView([lat, lon], 16);
+                        marker.setLatLng([lat, lon]);
+
+                        // Cập nhật tọa độ vào ô input
+                        $('#latInput').val(lat.toFixed(6));
+                        $('#lngInput').val(lon.toFixed(6));
+
+                        if (isFallback) {
+                            // Báo cho chủ quán biết là hệ thống đã tự cắt số nhà
+                            Swal.fire({
+                                toast: true, position: 'top-end', icon: 'info',
+                                title: 'Đã tìm thấy tên đường!',
+                                text: 'Hệ thống đã tự động trỏ tới khu vực này. Vui lòng kéo ghim đến đúng số nhà của bạn.',
+                                showConfirmButton: false, timer: 5000, timerProgressBar: true
+                            });
+                        }
+                    } else {
+                        if (!isFallback) {
+                            // Tự động loại bỏ số nhà ở đầu câu nếu tìm thất bại
+                            // Ví dụ: "149 Trần Văn Khéo" -> "Trần Văn Khéo"
+                            let fallbackQuery = query.replace(/^[\w\d/A-Za-z-]+\s+/, '').trim();
+
+                            // Cắt cả những chữ như "Số 149", "Hẻm 12"
+                            fallbackQuery = fallbackQuery.replace(/^(Số|Hẻm|Ngõ)\s+[\w\d/A-Za-z-]+\s+/i, '').trim();
+
+                            if (fallbackQuery && fallbackQuery !== query && fallbackQuery.length > 5) {
+                                performSearch(fallbackQuery, true); // Gọi tàng hình lần 2 với địa chỉ đã cắt
+                                return;
+                            }
+                        }
+
+                        btn.html(originalText).prop('disabled', false);
+                        Swal.fire('Không tìm thấy', 'Bản đồ không nhận diện được địa chỉ này. Vui lòng chỉ nhập: Tên đường, Phường, Thành phố.', 'warning');
+                    }
+                }).fail(function() {
+                    btn.html(originalText).prop('disabled', false);
+                    Swal.fire('Lỗi', 'Không thể kết nối đến máy chủ bản đồ.', 'error');
+                });
+            }
+
+            $('#btnSearchMap').click(function() {
+                var query = $('#mapSearchInput').val().trim();
+
+                // Lấy dữ liệu từ ô Địa chỉ phía trên nếu để trống ô tìm kiếm
+                if (!query) {
+                    query = $('#Address').val().trim();
+                    if(query) {
+                        $('#mapSearchInput').val(query);
+                    } else {
+                        return; 
+                    }
+                }
+
+                performSearch(query);
+            });
+
+            $('#mapSearchInput').keypress(function(e) {
+                if (e.which == 13) {
+                    e.preventDefault();
+                    $('#btnSearchMap').click();
+                }
+            });
+        });
+
         // JS Lịch
         const daysMap = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
         let scheduleData = {};
@@ -249,14 +395,13 @@
 
         document.addEventListener('DOMContentLoaded', initScheduleData);
 
-        // 🔥 XỬ LÝ LƯU THÔNG TIN BẰNG AJAX (KHÔNG RESET TRANG)
+        // XỬ LÝ LƯU THÔNG TIN BẰNG AJAX (KHÔNG RESET TRANG)
         $('#storeInfoForm').on('submit', function (e) {
-            e.preventDefault(); // Ngăn chặn tải lại trang mặc định
+            e.preventDefault();
 
             let btn = $('#btnSaveInfo');
             let originalText = btn.html();
 
-            // Đổi trạng thái nút thành đang load
             btn.html('<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...').prop('disabled', true);
 
             var isOpen = $('#statusSwitch').is(':checked');
@@ -272,10 +417,9 @@
                 processData: false,
                 contentType: false,
                 success: function (res) {
-                    btn.html(originalText).prop('disabled', false); // Trả lại nút ban đầu
+                    btn.html(originalText).prop('disabled', false);
 
                     if (res.success) {
-                        // Hiện thông báo ở góc màn hình siêu mượt mà không reload trang
                         Swal.fire({
                             toast: true,
                             position: 'top-end',

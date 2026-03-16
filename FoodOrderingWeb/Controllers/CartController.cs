@@ -88,7 +88,6 @@ namespace FoodOrderingWeb.Controllers
             var safeSize = string.IsNullOrEmpty(size) ? "Nho" : size;
             var safeNote = (note ?? "").Trim();
 
-            // 🔥 ĐÃ FIX: Ép kiểu (decimal)food.Price
             decimal finalPrice = CalculateSizePrice((decimal)food.Price, safeSize);
 
             var existingItem = cart.FirstOrDefault(x =>
@@ -99,7 +98,7 @@ namespace FoodOrderingWeb.Controllers
 
             if (existingItem != null)
             {
-                existingItem.Quantity += safeQuantity;
+                existingItem.Quantity += safeQuantity; // kiểm món u chọn có trong giỏ chưa, có thì + số lượng
             }
             else
             {
@@ -130,7 +129,6 @@ namespace FoodOrderingWeb.Controllers
             int safeQuantity = quantity > 0 ? quantity : 1;
             var safeSize = string.IsNullOrEmpty(size) ? "Nho" : size;
 
-            // 🔥 ĐÃ FIX: Ép kiểu (decimal)food.Price
             decimal finalPrice = CalculateSizePrice((decimal)food.Price, safeSize);
 
             newCart.Add(new CartItem
@@ -183,7 +181,6 @@ namespace FoodOrderingWeb.Controllers
             return RedirectToAction("Index");
         }
 
-        // 🔥 ĐÃ THÊM HÀM MỚI ĐỂ LƯU GHI CHÚ VÀ SIZE TỪ POPUP
         [HttpPost]
         public IActionResult UpdateCartItem(Guid cartItemId, string size, string note, int quantity)
         {
@@ -248,7 +245,6 @@ namespace FoodOrderingWeb.Controllers
                 PhoneNumber = HttpContext.Session.GetString("PhoneNumber") ?? "",
                 Address = HttpContext.Session.GetString("Address") ?? "",
                 CartItems = cart,
-                // 🔥 ĐÃ FIX: Ép kiểu an toàn khi tính tổng tiền
                 TotalAmount = (decimal)cart.Sum(x => (decimal)x.TotalPrice)
             };
 
@@ -268,6 +264,7 @@ namespace FoodOrderingWeb.Controllers
         {
             try
             {
+                // Tính khoảng cách giữa 2 tọa độ (công thức Haversine)
                 var R = 6371;
                 var dLat = (storeLat - userLat) * Math.PI / 180.0;
                 var dLon = (storeLng - userLng) * Math.PI / 180.0;
@@ -279,12 +276,10 @@ namespace FoodOrderingWeb.Controllers
                 var distance = R * c;
                 var actualDistance = Math.Round(distance * 1.4, 1);
 
-                // 🔥 ĐÃ SỬA CÔNG THỨC: 10.000đ (Mặc định) + 5.000đ/km
-                decimal baseFee = 10000m;
-                decimal distanceFee = (decimal)(actualDistance * 5000);
+                decimal baseFee = 10000m; // phí ship nhận
+                decimal distanceFee = (decimal)(actualDistance * 5000); // phí ship thêm
                 decimal shipFee = baseFee + distanceFee;
 
-                // Làm tròn tiền cho đẹp (VD: 17.300đ thành 17.000đ)
                 shipFee = Math.Round(shipFee / 1000) * 1000;
 
                 return Json(new { success = true, distance = actualDistance, fee = shipFee });
@@ -306,7 +301,6 @@ namespace FoodOrderingWeb.Controllers
                 var cart = GetCartItems();
                 if (!cart.Any()) return Json(new { success = false, message = "Giỏ hàng đang trống!" });
 
-                // 🔥 ĐÃ FIX: Ép kiểu an toàn khi tính tổng
                 decimal cartTotal = (decimal)cart.Sum(x => (decimal)x.Price * x.Quantity);
                 decimal finalTotalAmount = cartTotal + shippingFee;
 
@@ -322,8 +316,6 @@ namespace FoodOrderingWeb.Controllers
                     TotalAmount = finalTotalAmount,
                     OrderDate = DateTime.Now,
                     Status = "Pending",
-
-                    // ✅ TẠO DANH SÁCH CHI TIẾT ĐƠN HÀNG NGAY TỪ ĐẦU (Khắc phục triệt để lỗi Khóa ngoại)
                     OrderDetails = new List<OrderDetail>()
                 };
 
@@ -331,7 +323,6 @@ namespace FoodOrderingWeb.Controllers
                 {
                     newOrder.OrderDetails.Add(new OrderDetail
                     {
-                        // Không cần gán OrderId vì EF Core sẽ tự động liên kết khi lưu chung
                         FoodId = item.FoodId,
                         Quantity = item.Quantity,
                         Price = (decimal)item.Price,
@@ -339,18 +330,15 @@ namespace FoodOrderingWeb.Controllers
                     });
                 }
 
-                // ✅ CHỈ CẦN LƯU 1 LẦN DUY NHẤT LÀ XONG CẢ BẢNG CHA VÀ BẢNG CON
                 _context.Orders.Add(newOrder);
                 await _context.SaveChangesAsync();
 
-                // Đặt hàng xong thì xóa giỏ hàng
-                HttpContext.Session.Remove("Cart");
+                HttpContext.Session.Remove("Cart"); // xoá giỏ hàng sau khi đặt 
 
                 return Json(new { success = true, isVnPay = false });
             }
             catch (Exception ex)
             {
-                // Lấy lỗi chi tiết sâu nhất từ Database
                 string realError = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
                 return Json(new { success = false, message = "Lỗi gốc từ CSDL: " + realError });
             }
@@ -400,7 +388,7 @@ namespace FoodOrderingWeb.Controllers
             }
             return Json(new { success = false });
         }
-        // 🔥 HÀM MỚI: API ĐỂ GIAO DIỆN KHÁCH HÀNG HỎI THĂM TRẠNG THÁI 5s/LẦN
+        // API ĐỂ GIAO DIỆN KHÁCH HÀNG HỎI THĂM TRẠNG THÁI 5s/LẦN
         [HttpGet]
         public IActionResult CheckOrderStatus(int orderId)
         {
@@ -414,11 +402,10 @@ namespace FoodOrderingWeb.Controllers
             {
                 success = true,
                 status = order.Status,
-                cancelReason = order.CancelReason, // 🔥 Lấy lý do hủy từ CSDL
-                totalAmount = order.TotalAmount    // 🔥 Lấy tổng tiền để báo hoàn tiền
+                cancelReason = order.CancelReason, //  Lấy lý do hủy từ CSDL
+                totalAmount = order.TotalAmount    //  Lấy tổng tiền để báo hoàn tiền
             });
         }
-        // 🔥 API ĐỂ TẠO THANH BANNER CHẠY TRỰC TIẾP TRÊN ĐẦU TRANG WEB
         [HttpGet]
         public IActionResult GetLiveOrderBanner()
         {

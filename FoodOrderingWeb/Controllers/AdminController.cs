@@ -31,7 +31,7 @@ namespace FoodOrderingWeb.Controllers
             ViewBag.TotalOrders = _context.Orders.Count();
             ViewBag.TotalRevenue = _context.Orders.Where(o => o.Status == "Completed").Sum(o => (decimal?)o.TotalAmount) ?? 0;
 
-            // 🔥 FIX LOGIC: Đếm và lấy chính xác các quán mà User đang là PendingStoreOwner
+            // đếm và lấy chính xác các quán mà User đang là PendingStoreOwner
             ViewBag.PendingStoresCount = _context.Stores.Include(s => s.Owner).Count(s => s.Owner.Role == "PendingStoreOwner");
             ViewBag.PendingStoresList = _context.Stores.Include(s => s.Owner).Where(s => s.Owner.Role == "PendingStoreOwner").ToList();
 
@@ -85,7 +85,7 @@ namespace FoodOrderingWeb.Controllers
 
             var query = _context.Stores.Include(s => s.Owner).AsQueryable();
 
-            // 🔥 FIX LOGIC: Lọc quán chờ duyệt CHUẨN XÁC
+            // Lọc quán chờ duyệt CHUẨN XÁC
             if (filter == "pending")
             {
                 query = query.Where(s => s.Owner.Role == "PendingStoreOwner");
@@ -207,7 +207,10 @@ namespace FoodOrderingWeb.Controllers
 
             if (tab == "Customer")
             {
-                query = query.Where(u => u.Role == "Customer" || u.Role == "PendingStoreOwner");
+                query = query.Where(u => u.Role == "Customer"
+                                      || string.IsNullOrEmpty(u.Role)
+                                      || u.Role == "PendingStoreOwner"
+                                      || u.Role == "PendingDriver");
             }
             else if (tab == "StoreOwner")
             {
@@ -215,7 +218,7 @@ namespace FoodOrderingWeb.Controllers
             }
             else if (tab == "Driver")
             {
-                query = query.Where(u => u.Role == "Driver" || u.Role == "PendingDriver");
+                query = query.Where(u => u.Role == "Driver");
             }
 
             var users = query.ToList();
@@ -266,7 +269,7 @@ namespace FoodOrderingWeb.Controllers
 
             var pendingStores = _context.Stores
                 .Include(s => s.Owner)
-                .Where(s => s.Owner.Role == "PendingStoreOwner") // 🔥 Bắt chặt bằng ROLE
+                .Where(s => s.Owner.Role == "PendingStoreOwner")
                 .Select(s => new {
                     storeId = s.StoreId,
                     storeName = s.StoreName,

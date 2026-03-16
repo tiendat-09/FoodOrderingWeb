@@ -112,6 +112,14 @@
                                         string s = (item.Status ?? "").ToLower();
                                         string statusVN = s == "completed" ? "Thành công" : (s == "cancelled" ? "Đã hủy" : "Đang xử lý");
                                         string bClass = s == "completed" ? "bg-success-subtle text-success" : (s == "cancelled" ? "bg-danger-subtle text-danger" : "bg-warning-subtle text-dark");
+
+                                        // Rút gọn hiển thị người hủy
+                                        if (s == "cancelled")
+                                        {
+                                            string reason = item.CancelReason ?? "";
+                                            if (reason.Contains("Quán hủy")) statusVN = "Quán hủy";
+                                            else if (reason.Contains("Khách")) statusVN = "Khách hủy";
+                                        }
                                     }
                                     <span class="badge @bClass rounded-pill px-3 py-2">@statusVN</span>
                                 </td>

@@ -7,8 +7,6 @@
 @{
     ViewData["Title"] = "Hồ sơ cá nhân";
     Layout = "~/Views/Shared/_Layout.cshtml";
-
-    bool isPendingStore = _context.Stores.Any(s => s.OwnerId == Model.UserId && s.IsActive == false);
 }
 
 <style>
@@ -683,24 +681,19 @@
                 <span class="sidebar-badge" style="background-color: transparent; border: none;">
                     @if (Model.Role == "StoreOwner")
                     {
-                        <span class="badge bg-success rounded-pill px-3 py-2">⭐ Quản Trị Viên VIP</span>
+                        <span class="badge bg-success rounded-pill px-3 py-2">⭐ Chủ Quán</span>
                     }
                     else if (Model.Role == "Admin")
                     {
-                        <span class="badge bg-primary rounded-pill px-3 py-2">👑 Admin VIP</span>
+                        <span class="badge bg-primary rounded-pill px-3 py-2">👑 Quản Trị Viên</span>
+                    }
+                    else if (Model.Role == "Driver")
+                    {
+                        <span class="badge bg-info text-dark rounded-pill px-3 py-2">🛵 Tài Xế</span>
                     }
                     else
                     {
-                        @if (isPendingStore)
-                        {
-                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2 border border-warning shadow-sm">
-                                <i class="bi bi-hourglass-split"></i> Hồ sơ chờ duyệt
-                            </span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-secondary rounded-pill px-3 py-2">Khách Hàng</span>
-                        }
+                        <span class="badge bg-secondary rounded-pill px-3 py-2">👤 Khách Hàng</span>
                     }
                 </span>
             </div>
@@ -784,58 +777,7 @@
                 <button type="submit" class="action-btn btn-yellow" id="btnChangePassword">Cập nhật mật khẩu</button>
             </form>
         </div>
-
-        @* ── PHẦN CHỜ DUYỆT (hiện bên dưới bảo mật nếu có hồ sơ đang chờ) ── *@
-        @if (isPendingStore)
-        {
-            <hr class="divider" />
-
-            <div class="pending-card">
-                <div class="pending-card-header">
-                    <i class="bi bi-clock-history text-warning fs-4"></i>
-                    <div>
-                        <h5>Đăng ký đối tác bán hàng</h5>
-                        <p>Trạng thái xét duyệt hồ sơ quán của bạn</p>
-                    </div>
-                </div>
-
-                <div class="pending-card-body">
-                    <div class="steps">
-                        <div class="step">
-                            <div class="step-circle done">✓</div>
-                            <span class="step-label done">Nộp hồ sơ</span>
-                        </div>
-                        <div class="step-line done"></div>
-                        <div class="step">
-                            <div class="step-circle active">⏳</div>
-                            <span class="step-label active">Chờ duyệt</span>
-                        </div>
-                        <div class="step-line"></div>
-                        <div class="step">
-                            <div class="step-circle wait">3</div>
-                            <span class="step-label wait">Được duyệt</span>
-                        </div>
-                        <div class="step-line"></div>
-                        <div class="step">
-                            <div class="step-circle wait">4</div>
-                            <span class="step-label wait">Mở bán</span>
-                        </div>
-                    </div>
-
-                    <div class="pending-info-box">
-                        <div class="pi-icon">⏰</div>
-                        <div class="pi-text">
-                            <h6>Hồ sơ đang được xem xét</h6>
-                            <p>
-                                Đội ngũ <strong>OrderFood</strong> đang kiểm tra thông tin quán của bạn.
-                                Thời gian xét duyệt thường từ <strong>1–2 ngày làm việc</strong>.
-                                Bạn sẽ nhận được thông báo khi có kết quả.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
+        
     </div>
 </div>
 

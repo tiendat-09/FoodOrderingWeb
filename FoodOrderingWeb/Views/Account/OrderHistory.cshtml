@@ -245,14 +245,16 @@
             }
         });
 
-        function openTrackingModal(orderId, status) {
-            currentTrackingOrderId = orderId; $('#trackOrderId').text(orderId); let timeline = $('#trackingTimeline'); timeline.html('');
+        // 🔥 TÁCH HÀM VẼ TIMELINE ĐỂ DÙNG CHUNG (Cập nhật Live)
+        function updateTrackingTimeline(status) {
+            let timeline = $('#trackingTimeline'); timeline.html('');
             let steps = []; status = status.toLowerCase();
             if (status === 'pending') { steps.push({ title: 'Đã đặt đơn', active: true }); steps.push({ title: 'Chờ quán xác nhận', active: true, isPulse: true }); steps.push({ title: 'Đang tìm tài xế', active: false }); steps.push({ title: 'Đang giao hàng', active: false }); }
             else if (status === 'preparing') { steps.push({ title: 'Quán đã nhận đơn', active: true }); steps.push({ title: 'Đang tìm Shipper', active: true, isPulse: true }); steps.push({ title: 'Tài xế lấy món', active: false }); steps.push({ title: 'Đang giao hàng', active: false }); }
             else if (status === 'shipping') { steps.push({ title: 'Tài xế đã nhận đơn', active: true }); steps.push({ title: 'Đang đến quán', active: true, isPulse: true }); steps.push({ title: 'Đang giao hàng', active: false }); steps.push({ title: 'Hoàn thành', active: false }); }
             else if (status === 'delivering') { steps.push({ title: 'Đã nhận đơn', active: true }); steps.push({ title: 'Đã lấy món', active: true }); steps.push({ title: 'Đang giao hàng', active: true, isPulse: true }); steps.push({ title: 'Hoàn thành', active: false }); }
             else if (status === 'arrived') { steps.push({ title: 'Đã lấy món', active: true }); steps.push({ title: 'Đang giao hàng', active: true }); steps.push({ title: 'Tài xế đã đến', active: true, isPulse: true }); steps.push({ title: 'Hoàn thành', active: false }); }
+            else if (status === 'completed') { steps.push({ title: 'Đã lấy món', active: true }); steps.push({ title: 'Đang giao hàng', active: true }); steps.push({ title: 'Giao thành công', active: true }); steps.push({ title: 'Hoàn thành', active: true, isPulse: false }); } // Thêm case completed để xanh hết
 
             steps.forEach(step => {
                 let activeClass = step.active ? 'step-active' : '';
@@ -260,6 +262,13 @@
                 let stepHtml = `<li class="timeline-item ${activeClass}"><div class="timeline-marker"></div><div class="timeline-content"><h6 class="timeline-title mb-0" style="padding-top: 2px;">${step.title} ${pulseHtml}</h6></div></li>`;
                 timeline.append(stepHtml);
             });
+        }
+
+        function openTrackingModal(orderId, status) {
+            currentTrackingOrderId = orderId;
+            $('#trackOrderId').text(orderId);
+            updateTrackingTimeline(status); // Gọi hàm vẽ
+
             let modalEl = document.getElementById('trackingModal');
             if (!modalEl.classList.contains('show')) { bootstrap.Modal.getOrCreateInstance(modalEl).show(); }
         }
@@ -327,7 +336,6 @@
                                     confirmButtonText: 'Đã hiểu',
                                     confirmButtonColor: '#0dcaf0'
                                 }).then(() => {
-                                    // 🔥 Lưu cờ vào session để sau khi F5 sẽ báo Ting Ting
                                     sessionStorage.setItem('simulatedRefundAmount', amountText);
                                     window.location.reload();
                                 });
@@ -347,13 +355,16 @@
             });
         }
 
-        // AJAX POLLING TỐI ƯU KIỂM TRA ĐƠN HÀNG KHI QUÁN HỦY
+        // AJAX POLLING TỐI ƯU KIỂM TRA ĐƠN HÀNG KHI QUÁN HỦY & TÀI XẾ CẬP NHẬT
         $(document).ready(function () {
             let orderStatuses = {};
             $('.order-row').each(function() { orderStatuses[$(this).data('order-id')] = $(this).data('status'); });
 
             setInterval(function () {
-                if ($('.modal.show').length === 0 && !document.body.classList.contains('swal2-shown')) {
+                // chỉ chặn cập nhật nếu đang mở modal Đánh giá (Rating). Mở Tracking thì vẫn Load bình thường!
+                let isRatingOpen = $('#storeRatingModal').hasClass('show') || $('#driverRatingModal').hasClass('show');
+
+                if (!isRatingOpen && !document.body.classList.contains('swal2-shown')) {
                     $('#order-table-container').load(location.href + ' #order-table-container > *', function() {
                         checkRatedButtons();
 
@@ -371,7 +382,6 @@
                                 else if (oldStatus !== 'cancelled' && newStatus === 'cancelled') {
                                     setTimeout(function() {
                                         let amountText = row.find('td:eq(3)').text().trim();
-
                                         if (paymentMethod.includes('qr') || paymentMethod.includes('chuyển khoản') || paymentMethod.includes('vnpay')) {
                                             Swal.fire({
                                                 icon: 'error',
@@ -389,7 +399,6 @@
                                             });
                                         }
                                         else {
-                                            // 🔥 ĐÃ FIX: XÓA DÒNG HIỂN THỊ LÝ DO KHI THANH TOÁN TIỀN MẶT
                                             Swal.fire({
                                                 icon: 'error',
                                                 title: 'Đơn hàng đã bị quán từ chối',
@@ -410,6 +419,17 @@
                             }
                             orderStatuses[id] = newStatus;
                         });
+
+                        // 🔥 NẾU ĐANG MỞ BẢNG THEO DÕI, TỰ ĐỘNG VẼ LẠI TIMELINE LUÔN
+                        if (currentTrackingOrderId) {
+                            let updatedRow = $('.order-row[data-order-id="' + currentTrackingOrderId + '"]');
+                            if (updatedRow.length > 0) {
+                                let liveStatus = updatedRow.data('status');
+                                updateTrackingTimeline(liveStatus);
+                            } else {
+                                $('#trackingModal').modal('hide');
+                            }
+                        }
                     });
                 }
             }, 4000);

@@ -57,7 +57,7 @@ namespace FoodOrderingWeb.Controllers
 
             if (user != null)
             {
-                // 🔥 LOGIC HẠ CẤP: Kiểm tra xem quán có bị Admin khóa không
+                // kiểm tra xem quán có bị Admin khóa không
                 string activeRole = user.Role;
                 bool isLockedStore = false;
 
@@ -82,7 +82,6 @@ namespace FoodOrderingWeb.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                // Nếu là quán bị khóa, đá về trang Home với thông báo
                 if (isLockedStore)
                 {
                     TempData["GlobalMessage"] = "Quán của bạn đang bị Tạm khóa! Bạn đang dùng giao diện Khách hàng.";
@@ -90,7 +89,6 @@ namespace FoodOrderingWeb.Controllers
                     return RedirectToAction("Index", "Home");
                 }
 
-                // Điều hướng bình thường
                 if (activeRole == "Admin") return RedirectToAction("Index", "Admin");
                 if (activeRole == "StoreOwner") return RedirectToAction("Index", "StoreManager");
                 if (activeRole == "Driver") return RedirectToAction("Index", "Driver");
@@ -264,7 +262,7 @@ namespace FoodOrderingWeb.Controllers
 
             var user = _context.Users.Find(userId);
 
-            bool hasPendingStore = _context.Stores.Any(s => s.OwnerId == userId.Value && (s.IsActive == false || s.IsActive == null));
+            bool hasPendingStore = _context.Stores.Any(s => s.OwnerId == userId.Value && (s.IsActive == false || s.IsActive == null)); // kiểm tra có đơn nào đã gửi hay không
             if (hasPendingStore)
             {
                 TempData["Error"] = "Hồ sơ mở quán của bạn đang chờ duyệt, vui lòng không gửi lại!";
@@ -286,7 +284,6 @@ namespace FoodOrderingWeb.Controllers
             return View();
         }
 
-        // 🔥 FIX QUAN TRỌNG: Cập nhật quyền PendingStoreOwner
         [HttpPost("RegisterStore")]
         public IActionResult RegisterStore(Store store, string OwnerName)
         {
@@ -298,9 +295,10 @@ namespace FoodOrderingWeb.Controllers
                 var user = _context.Users.Find(userId);
                 if (!string.IsNullOrEmpty(OwnerName)) { user.FullName = OwnerName; }
 
-                var existingStore = _context.Stores.FirstOrDefault(s => s.OwnerId == userId);
+                var existingStore = _context.Stores.FirstOrDefault(s => s.OwnerId == userId); // xem u này từng mở quán trong DB chưa   
                 if (existingStore != null)
                 {
+                    // cập nhật lại tt quán cũ và đổi trạng thái về chờ duyệt
                     existingStore.StoreName = store.StoreName;
                     existingStore.Address = store.Address;
                     existingStore.Description = store.Description;
@@ -310,6 +308,7 @@ namespace FoodOrderingWeb.Controllers
                 }
                 else
                 {
+                    // Tạo quán mới hoàn toàn
                     store.OwnerId = userId.Value;
                     store.IsActive = false;
                     store.Rating = 5.0;
@@ -317,12 +316,11 @@ namespace FoodOrderingWeb.Controllers
                     _context.Stores.Add(store);
                 }
 
-                // GÁN ROLE LÀ PENDING STORE VÀ ÉP SESSION NHẬN DIỆN
                 user.Role = "PendingStoreOwner";
                 _context.SaveChanges();
                 HttpContext.Session.SetString("Role", "PendingStoreOwner");
 
-                return Json(new { success = true, message = "Hồ sơ đã gửi thành công!" });
+                return Json(new { success = true, message = "Hồ sơ đã gửi thành công!" }); // view khong load lại và gửi popup
             }
             catch (Exception ex) { return Json(new { success = false, message = ex.Message }); }
         }
@@ -351,7 +349,6 @@ namespace FoodOrderingWeb.Controllers
             return View();
         }
 
-        // 🔥 FIX QUAN TRỌNG: Cập nhật quyền PendingDriver
         [HttpPost("RegisterDriver")]
         public async Task<IActionResult> RegisterDriver(string FullName, string PhoneNumber, string CitizenId, string LicensePlate)
         {

@@ -276,11 +276,18 @@ namespace FoodOrderingWeb.Controllers
                 var distance = R * c;
                 var actualDistance = Math.Round(distance * 1.4, 1);
 
-                decimal baseFee = 10000m; // phí ship nhận
-                decimal distanceFee = (decimal)(actualDistance * 5000); // phí ship thêm
-                decimal shipFee = baseFee + distanceFee;
+                decimal shipFee = 10000m; // phí ship nhận mặc định 
 
-                shipFee = Math.Round(shipFee / 1000) * 1000;
+                if (actualDistance > 2.0)
+                {
+                    double extraKm = actualDistance - 2.0;
+
+                    // Làm tròn 0.5 trở lên làm tròn lên, dưới 0.5 làm tròn xuống 1.5 -> 2
+                    double roundedExtraKm = Math.Round(extraKm, MidpointRounding.AwayFromZero);
+
+                    // Cộng thêm phí: Số km vượt (đã làm tròn) * 5000đ
+                    shipFee += (decimal)(roundedExtraKm * 5000);
+                }
 
                 return Json(new { success = true, distance = actualDistance, fee = shipFee });
             }

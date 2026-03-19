@@ -42,24 +42,29 @@ namespace FoodOrderingWeb.Controllers
             if (HttpContext.Session.GetString("Role") != "StoreOwner") return RedirectToAction("Index", "Home");
             int? storeId = GetCurrentStoreId();
             if (storeId == null) return RedirectToAction("RegisterStore", "Account");
-            var storeOrders = _context.Orders.Where(o => o.StoreId == storeId).ToList();
-            var completedOrders = storeOrders.Where(o => !string.IsNullOrEmpty(o.Status) && o.Status.ToLower() == "completed").ToList();
 
-            // Tổng đơn (tất cả các trạng thái)
+            var storeOrders = _context.Orders.Where(o => o.StoreId == storeId).ToList();
+
+            // Chỉ tính trên các đơn hàng đã hoàn thành
+            var completedOrders = storeOrders
+                .Where(o => !string.IsNullOrEmpty(o.Status) && o.Status.ToLower() == "completed")
+                .ToList();
+
             ViewBag.TotalOrders = storeOrders.Count;
 
-            // Tổng doanh thu lũy kế
-            ViewBag.TotalRevenue = completedOrders.Sum(o => (decimal?)o.TotalAmount) ?? 0;
+            ViewBag.TotalRevenue = completedOrders
+                .Sum(o => o.TotalAmount - o.ShippingFee);
 
-            // Doanh thu Hôm nay
+            // 2. Doanh thu Hôm nay
             ViewBag.TodayRevenue = completedOrders
                 .Where(o => o.OrderDate.HasValue && o.OrderDate.Value.Date == DateTime.Today)
-                .Sum(o => (decimal?)o.TotalAmount) ?? 0;
+                .Sum(o => o.TotalAmount - o.ShippingFee);
 
-            // Doanh thu Tháng này
+            // 3. Doanh thu Tháng này
             ViewBag.MonthRevenue = completedOrders
                 .Where(o => o.OrderDate.HasValue && o.OrderDate.Value.Month == DateTime.Now.Month && o.OrderDate.Value.Year == DateTime.Now.Year)
-                .Sum(o => (decimal?)o.TotalAmount) ?? 0;
+                .Sum(o => o.TotalAmount - o.ShippingFee);
+            // ----------------------------
 
             var ratings = _context.Orders.Where(o => o.StoreId == storeId && o.StoreRating > 0);
             int totalReviews = ratings.Count();
@@ -73,7 +78,7 @@ namespace FoodOrderingWeb.Controllers
                 .Include(o => o.Driver)
                 .Where(o => o.StoreId == storeId)
                 .OrderByDescending(o => o.OrderDate)
-                .Take(5) // lấy 5 đơn gần nhất
+                .Take(5)
                 .ToList();
 
             return View(recentOrders);
@@ -341,6 +346,7 @@ namespace FoodOrderingWeb.Controllers
             if (order != null && order.Status == "Pending")
             {
                 order.Status = "Preparing";
+                order.AcceptTime = DateTime.Now;
                 _context.SaveChanges();
                 return Json(new { success = true, message = "Đã nhận đơn!" });
             }

@@ -303,7 +303,6 @@
         let currentTotal = Math.round(@Html.Raw(Json.Serialize(Model.TotalAmount)));
 
         // 🔥 1. THUẬT TOÁN TẠO CHUỖI VIETQR (EMVCo) CHUẨN QUỐC TẾ
-        // Giải quyết triệt để lỗi "Không đúng định dạng" của Momo / MB Bank
         function generateVietQRString(bin, acc, amount, desc) {
             let pad = (n) => (n < 10 ? '0' : '') + n;
 
@@ -331,14 +330,13 @@
         // 2. HÀM HIỂN THỊ MODAL VÀ VẼ MÃ QR
         function showQRModal() {
             const amount = Math.round(currentTotal);
-            const bankBin = "970422"; // Mã định danh của MB Bank
-            const accNo = "0344345948"; // Số tài khoản của bạn
-            const desc = "ThanhToan"; // Ghi chú không dấu, không khoảng trắng
+            const bankBin = "970422"; 
+            const accNo = "0344345948"; 
+            const desc = "ThanhToan"; 
 
-            // Tự động tạo chuỗi mã hóa ngân hàng
             const emvcoString = generateVietQRString(bankBin, accNo, amount, desc);
 
-            // Dùng API vẽ QR trung lập (Không bị trình duyệt chặn, vẽ từ chuỗi chuẩn)
+            // Dùng API vẽ QR trung lập (Không bị trình duyệt chặn)
             const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(emvcoString)}`;
 
             const imgEl = document.getElementById('dynamicQRImage');

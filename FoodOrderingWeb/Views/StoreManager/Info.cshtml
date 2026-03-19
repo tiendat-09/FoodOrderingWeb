@@ -396,6 +396,8 @@
         document.addEventListener('DOMContentLoaded', initScheduleData);
 
         // XỬ LÝ LƯU THÔNG TIN BẰNG AJAX (KHÔNG RESET TRANG)
+        // XỬ LÝ LƯU THÔNG TIN BẰNG AJAX (KHÔNG RESET TRANG)
+        // XỬ LÝ LƯU THÔNG TIN BẰNG AJAX (KHÔNG RESET TRANG)
         $('#storeInfoForm').on('submit', function (e) {
             e.preventDefault();
 
@@ -403,9 +405,6 @@
             let originalText = btn.html();
 
             btn.html('<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...').prop('disabled', true);
-
-            var isOpen = $('#statusSwitch').is(':checked');
-            var statusText = isOpen ? "Đã mở quán!" : "Đã đóng quán!";
 
             $('#hiddenOperatingDaysJson').val(JSON.stringify(scheduleData));
             var formData = new FormData(this);
@@ -425,10 +424,9 @@
                             position: 'top-end',
                             icon: 'success',
                             title: 'Lưu thành công!',
-                            text: 'Trạng thái: ' + statusText,
                             showConfirmButton: false,
-                            timer: 2500,
-                            timerProgressBar: true
+                            timer: 2000,             // Tự ẩn sau đúng 2 giây
+                            timerProgressBar: false  // Tắt thanh thời gian chạy bên dưới
                         });
                     } else {
                         Swal.fire('Lỗi', res.message || 'Không thể lưu thông tin.', 'error');
